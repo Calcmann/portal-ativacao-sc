@@ -3,258 +3,341 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Portal de Suporte de Campo - Ativação - SC</title>
+    <title>Portal de Suporte Técnico de Campo - Ativação SC</title>
     <style>
         :root {
             --claro-vermelho: #ee1d23;
-            --bg-pagina: #f4f5f7;
+            --claro-vermelho-hover: #c91419;
+            --bg-layout: #f8fafc;
             --bg-card: #ffffff;
-            --texto-principal: #111827;
-            --texto-mutado: #6b7280;
-            --borda: #e5e7eb;
+            --texto-principal: #0f172a;
+            --texto-mutado: #64748b;
+            --borda: #e2e8f0;
+            --azul-claro: #f0fdf4;
+            --azul-texto: #15803d;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-pagina); color: var(--texto-principal); padding: 16px; padding-bottom: 60px; }
+        body { background-color: var(--bg-layout); color: var(--texto-principal); display: flex; flex-direction: column; min-height: 100vh; }
+
+        /* Barra Superior */
+        header { background-color: var(--bg-card); border-bottom: 3px solid var(--claro-vermelho); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .logo-area h1 { font-size: 1.3rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
+        .logo-area h1 span { color: var(--claro-vermelho); }
+        .logo-area p { font-size: 0.8rem; color: var(--texto-mutado); font-weight: 500; }
+
+        /* Dashboard Principal */
+        .workspace { display: grid; grid-template-columns: 280px 1fr; gap: 20px; padding: 24px; flex: 1; max-width: 1600px; width: 100%; margin: 0 auto; }
+
+        /* Painel Lateral de Filtros */
+        .sidebar { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 8px; padding: 20px; display: flex; flex-direction: column; gap: 20px; height: fit-content; }
+        .sidebar h3 { font-size: 0.9rem; text-transform: uppercase; color: var(--texto-mutado); letter-spacing: 0.5px; border-bottom: 1px solid var(--borda); padding-bottom: 8px; }
         
-        header { margin-bottom: 24px; text-align: center; border-bottom: 4px solid var(--claro-vermelho); background-color: var(--bg-card); padding: 24px 16px; border-radius: 0 0 12px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        header h1 { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; }
-        header h1 span { color: var(--claro-vermelho); }
-        header p { color: var(--texto-mutado); font-size: 0.85rem; margin-top: 4px; }
+        .grupo-filtro { display: flex; flex-direction: column; gap: 8px; }
+        .filtro-check { display: flex; align-items: center; gap: 10px; font-size: 0.9rem; font-weight: 500; cursor: pointer; padding: 6px 8px; border-radius: 4px; transition: background 0.15s; }
+        .filtro-check:hover { background-color: var(--bg-layout); }
+        .filtro-check input { width: 16px; height: 16px; accent-color: var(--claro-vermelho); }
 
-        .busca-container { margin-bottom: 20px; }
-        .busca-input { width: 100%; padding: 14px 16px; border-radius: 25px; border: 2px solid var(--borda); background-color: var(--bg-card); font-size: 1rem; outline: none; }
-        .busca-input:focus { border-color: var(--claro-vermelho); }
-
-        .grid-equipamentos { display: grid; grid-template-columns: 1fr; gap: 16px; }
-        @media (min-width: 768px) { .grid-equipamentos { grid-template-columns: repeat(2, 1fr); } }
-
-        .card-equipamento { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .card-equipamento h2 { font-size: 1.1rem; display: flex; flex-direction: column; gap: 6px; border-bottom: 2px solid var(--bg-pagina); padding-bottom: 10px; margin-bottom: 16px; }
-        .fabricante-label { font-size: 0.8rem; color: var(--claro-vermelho); font-weight: bold; text-transform: uppercase; }
+        /* Conteúdo e Indicadores */
+        .conteudo-principal { display: flex; flex-direction: column; gap: 20px; }
         
-        .badges-servicos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
-        .service-badge { font-size: 0.65rem; background-color: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--borda); }
-        .modelos-tag-lista { font-size: 0.8rem; color: var(--texto-principal); background-color: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid var(--borda); margin-top: 4px; line-height: 1.4; }
+        .indicadores-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+        .card-indicador { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 4px; }
+        .card-indicador h4 { font-size: 0.8rem; color: var(--texto-mutado); text-transform: uppercase; }
+        .card-indicador p { font-size: 1.8rem; font-weight: 700; color: var(--texto-principal); }
 
-        .secao-links { margin-bottom: 12px; margin-top: 12px; }
-        .secao-links h3 { font-size: 0.75rem; color: var(--texto-mutado); margin-bottom: 6px; text-transform: uppercase; }
-        
-        .link-suporte { display: flex; align-items: center; justify-content: space-between; color: var(--texto-principal); text-decoration: none; padding: 10px 12px; background-color: var(--bg-pagina); border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
-        .link-suporte:hover { background-color: var(--claro-vermelho); color: #ffffff; }
-        
-        .status-carregando { text-align: center; padding: 40px; color: var(--texto-mutado); }
+        /* Barra de Busca Avançada */
+        .busca-bloco { width: 100%; position: relative; }
+        .input-busca-desktop { width: 100%; padding: 14px 16px 14px 44px; font-size: 1rem; border: 2px solid var(--borda); border-radius: 6px; outline: none; transition: border-color 0.2s; background-color: var(--bg-card); }
+        .input-busca-desktop:focus { border-color: var(--claro-vermelho); }
+        .icone-busca { position: absolute; left: 16px; top: 15px; color: var(--texto-mutado); font-size: 1.1rem; }
 
-        .marcador-versao {
-            position: fixed;
-            bottom: 16px;
-            right: 16px;
-            background-color: var(--texto-principal);
-            color: #ffffff;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 6px 12px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 9999;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
+        /* Tabela de Dados Sophisticada */
+        .tabela-container { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+        table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
+        th { background-color: #f1f5f9; color: #475569; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid var(--borda); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
+        td { padding: 14px 16px; border-bottom: 1px solid var(--borda); vertical-align: middle; line-height: 1.4; }
+        tr:hover td { background-color: #f8fafc; }
+
+        /* Emblemas de Serviço e Ações */
+        .badge-fabricante { font-weight: 700; color: var(--claro-vermelho); text-transform: uppercase; font-size: 0.85rem; }
+        .badge-servicos-container { display: flex; flex-wrap: wrap; gap: 4px; }
+        .badge-tag { font-size: 0.7rem; font-weight: 700; background-color: #f1f5f9; color: #475569; padding: 2px 6px; border-radius: 4px; border: 1px solid #cbd5e1; }
+        .badge-tag.ativo { background-color: #ef4444; color: white; border-color: #dc2626; }
+        
+        .btn-download-desktop { display: inline-flex; align-items: center; gap: 6px; background-color: var(--texto-principal); color: white; text-decoration: none; padding: 8px 12px; border-radius: 4px; font-weight: 600; font-size: 0.8rem; transition: background 0.15s; }
+        .btn-download-desktop:hover { background-color: #000000; }
+
+        .status-carregando { padding: 40px; text-align: center; color: var(--texto-mutado); font-weight: 500; }
+
+        .marcador-versao { position: fixed; bottom: 16px; right: 16px; background-color: var(--texto-principal); color: white; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 9999; }
     </style>
 </head>
 <body>
 
     <header>
-        <h1>Ativação - <span>SC</span></h1>
-        <p>Homologações Ativas de Engenharia • Visão de Campo Regional</p>
+        <div class="logo-area">
+            <h1>Ativação - <span>SC</span></h1>
+            <p>Matriz de Homologação de Engenharia de Rede • Console Operacional Notebook</p>
+        </div>
     </header>
 
-    <div class="busca-container">
-        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Cisco, 1841)...">
+    <div class="workspace">
+        
+        <!-- Painel Lateral de Filtros Rápidos -->
+        <aside class="sidebar">
+            <div class="grupo-filtro">
+                <h3>Filtrar por Canal</h3>
+                <label class="filtro-check"><input type="checkbox" id="chkVipline" onchange="filtrarDados()"> VIPLINE</label>
+                <label class="filtro-check"><input type="checkbox" id="chkVipsip" onchange="filtrarDados()"> VIPSIP</label>
+                <label class="filtro-check"><input type="checkbox" id="chkPabx" onchange="filtrarDados()"> PABX Virtual</label>
+                <label class="filtro-check"><input type="checkbox" id="chkDados" onchange="filtrarDados()"> Dados</label>
+            </div>
+            
+            <div class="grupo-filtro">
+                <h3>Fabricante</h3>
+                <div id="containerFiltroFabricante"></div>
+            </div>
+        </aside>
+
+        <!-- Área Principal de Pesquisa e Tabela -->
+        <section class="conteudo-principal">
+            
+            <!-- Cards Informativos superiores -->
+            <div class="indicadores-grid">
+                <div class="card-indicador">
+                    <h4>Firmwares Homologados</h4>
+                    <p id="txtTotal">0</p>
+                </div>
+                <div class="card-indicador" style="border-left: 4px solid var(--claro-vermelho);">
+                    <h4>Fabricantes Ativos</h4>
+                    <p id="txtFabTotal">0</p>
+                </div>
+                <div class="card-indicador">
+                    <h4>Modelos Mapeados</h4>
+                    <p id="txtModTotal">0</p>
+                </div>
+            </div>
+
+            <!-- Caixa de Entrada de Busca Inteligente -->
+            <div class="busca-bloco">
+                <span class="icone-busca">🔍</span>
+                <input type="text" id="inputBusca" class="input-busca-desktop" placeholder="Pesquisa rápida por modelo de hardware, versão de firmware ou comando técnico...">
+            </div>
+
+            <!-- Tabela Dinâmica Principal -->
+            <div class="tabela-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width: 15%;">Fabricante</th>
+                            <th style="width: 35%;">Modelos Compatíveis na Operação</th>
+                            <th style="width: 25%;">Canais Atendidos</th>
+                            <th style="width: 25%;">Firmware de Ativação Homologado</th>
+                        </tr>
+                    </thead>
+                    <tbody id="corpoTabela">
+                        <tr>
+                            <td colspan="4" class="status-carregando">Sincronizando console com a base de dados do GitHub...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+        </section>
     </div>
 
-    <main class="grid-equipamentos" id="listaEquipamentos">
-        <div class="status-carregando">Sincronizando matriz de engenharia com os smartphones...</div>
-    </main>
-
-    <!-- Versão Incrementada para V2.6 -->
-    <div class="marcador-versao" id="txtVersao">V2.6</div>
+    <!-- Sincronizador de Carimbo Automático V3.0 -->
+    <div class="marcador-versao" id="txtVersao">V3.0</div>
 
     <script>
-        let dadosAgrupadosCampo = [];
+        let dadosGlobaisBase = [];
+        let fabricantesDistintos = [];
 
-        // ALERTA OBRIGATÓRIO: Ajuste para as suas credenciais reais do GitHub
+        // CONFIGURAÇÕES DO GITHUB (Altere para as suas strings de repositório reais)
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
-        async function carregarPlanilha() {
+        async function sincronizarPortal() {
             try {
-                const resposta = await fetch('engenharia.csv?t=' + new Date().getTime());
-                const textoCSV = await resposta.text();
-                processarCSVCampoNativo(textoCSV);
-            } catch (erro) {
-                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Matriz 'engenharia.csv' não sincronizada na nuvem. Execute a gravação manual no painel ADM.</div>`;
+                // 🌟 FIX CRÍTICO DE BUSCA: Força o desvio de cache do navegador usando o timestamp de milissegundos atual
+                const urlEngenharia = 'engenharia.csv?nocache=' + new Date().getTime();
+                const resposta = await fetch(urlEngenharia);
+                const textoPlanoCSV = await resposta.text();
+                processarMatrizCSV(textoPlanoCSV);
+            } catch (e) {
+                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Sincronização: A base 'engenharia.csv' não foi localizada na raiz do repositório. Carregue o arquivo através do painel administrativo.</td></tr>`;
             }
         }
 
-        function processarCSVCampoNativo(texto) {
-            const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if(linhasBrutas.length <= 1) return;
+        function processarMatrizCSV(texto) {
+            const linhas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if(linhas.length <= 1) return;
 
-            const primeiraLinha = linhasBrutas[0];
-            const separador = primeiraLinha.includes(';') ? ';' : ',';
-
-            let indiceTabela = 0;
-            for(let i = 0; i < linhasBrutas.length; i++) {
-                const colTeste = linhasBrutas[i].split(separador);
-                if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
-                    indiceTabela = i;
+            const separador = linhas[0].includes(';') ? ';' : ',';
+            let indiceCabecalho = 0;
+            for(let i = 0; i < linhas.length; i++) {
+                if(linhas[i].toLowerCase().includes('fabricante') && linhas[i].toLowerCase().includes('modelo')) {
+                    indiceCabecalho = i;
                     break;
                 }
             }
 
-            const dicionarioCampo = {};
-            let ultimoFabricanteValido = "Claro S.A.";
+            const dicionarioAgrupamento = {};
+            let memoriaFabricante = "Claro S.A.";
+            let totalModelosContados = 0;
 
-            for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
-                const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
-                
+            for(let i = indiceCabecalho + 1; i < linhas.length; i++) {
+                const colunas = linhas[i].split(separador).map(c => c.replace(/[\"']/g, "").trim());
                 if(colunas.length < 6) continue;
 
-                let fabricanteBruto = colunas[0];
+                let fabricanteCelular = colunas[0];
                 const vipline = colunas[1];
                 const vipsip = colunas[2];
                 const pabx = colunas[3];
                 const dados = colunas[4];
                 const modelo = colunas[5];
-                const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado';
+                const firmware = colunas[8] ? colunas[8].trim() : '';
 
-                if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
-                    ultimoFabricanteValido = fabricanteBruto;
+                if(fabricanteCelular && fabricanteCelular !== '-' && fabricanteCelular !== '') {
+                    memoriaFabricante = fabricanteCelular;
                 }
 
                 if(modelo && modelo !== '-' && firmware && firmware !== '-' && firmware !== '') {
-                    const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
+                    totalModelosContados++;
+                    const chaveUnicaFirmware = `${memoriaFabricante.toUpperCase()}_${firmware.toLowerCase()}`;
 
-                    if(!dicionarioCampo[chaveGrupo]) {
-                        dicionarioCampo[chaveGrupo] = {
-                            fabricante: ultimoFabricanteValido,
+                    if(!dicionarioAgrupamento[chaveUnicaFirmware]) {
+                        dicionarioAgrupamento[chaveUnicaFirmware] = {
+                            fabricante: memoriaFabricante,
                             firmware: firmware,
                             modelos: [],
-                            servicos: { vipline: false, vipsip: false, pabx: false, dados: false }
+                            vipline: false, vipsip: false, pabx: false, dados: false
                         };
                     }
-                    
-                    if(!dicionarioCampo[chaveGrupo].modelos.includes(modelo)){
-                        dicionarioCampo[chaveGrupo].modelos.push(modelo);
+
+                    if(!dicionarioAgrupamento[chaveUnicaFirmware].modelos.includes(modelo)) {
+                        dicionarioAgrupamento[chaveUnicaFirmware].modelos.push(modelo);
                     }
 
-                    if(vipline === 'X') dicionarioCampo[chaveGrupo].servicos.vipline = true;
-                    if(vipsip === 'X') dicionarioCampo[chaveGrupo].servicos.vipsip = true;
-                    if(pabx === 'X') dicionarioCampo[chaveGrupo].servicos.pabx = true;
-                    if(dados === 'X') dicionarioCampo[chaveGrupo].servicos.dados = true;
+                    if(vipline === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipline = true;
+                    if(vipsip === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipsip = true;
+                    if(pabx === 'X') dicionarioUnica = dicionarioAgrupamento[chaveUnicaFirmware].pabx = true;
+                    if(dados === 'X') dicionarioAgrupamento[chaveUnicaFirmware].dados = true;
                 }
             }
 
-            dadosAgrupadosCampo = Object.values(dicionarioCampo);
-            renderizarCardsCampoAgrupados(dadosAgrupadosCampo);
-        }
-
-        function renderizarCardsCampoAgrupados(lista) {
-            const container = document.getElementById('listaEquipamentos');
-            container.innerHTML = '';
-
-            if(lista.length === 0) {
-                container.innerHTML = '<div class="status-carregando">Nenhum equipamento localizado para esta pesquisa.</div>';
-                return;
-            }
-
-            lista.forEach(grupo => {
-                const fabPasta = grupo.fabricante.toLowerCase().replace(/ /g, '_');
-                const modelosTexto = grupo.modelos.join(" / ");
-
-                let servicosHTML = '';
-                if(grupo.servicos.vipline) servicosHTML += `<span class="service-badge">VIPLINE</span>`;
-                if(grupo.servicos.vipsip) servicosHTML += `<span class="service-badge">VIPSIP</span>`;
-                if(grupo.servicos.pabx) servicosHTML += `<span class="service-badge">PABX Virtual</span>`;
-                if(grupo.servicos.dados) servicosHTML += `<span class="service-badge">Dados</span>`;
-
-                const card = document.createElement('div');
-                card.className = 'card-equipamento';
-                
-                let linkFirmware = `./firmwares/${fabPasta}/${grupo.firmware}`;
-
-                card.innerHTML = `
-                    <h2>
-                        <span class="fabricante-label">${grupo.fabricante}</span>
-                        <div class="modelos-tag-lista">📟 Compatibilidade: <strong>${modelosTexto}</strong></div>
-                        <div class="badges-servicos" style="margin-top:8px;">${servicosHTML}</div>
-                    </h2>
-                    
-                    <div class="secul-links">
-                        <div class="secao-links">
-                            <h3>💾 Software Homologado</h3>
-                            <a href="${linkFirmware}" class="link-suporte">
-                                ${grupo.firmware} <span>📥</span>
-                            </a>
-                        </div>
-                    </div>
-                `;
-                container.appendChild(card);
-            });
-        }
-
-        // 🌟 ATUALIZAÇÃO CRÍTICA V2.6: Filtro de busca reativo direto na matriz de memória
-        document.getElementById('inputBusca').addEventListener('input', function(e) {
-            const termo = e.target.value.toLowerCase().trim();
+            dadosGlobaisBase = Object.values(dicionarioAgrupamento);
             
-            if (termo === "") {
-                renderizarCardsCampoAgrupados(dadosAgrupadosCampo);
+            // Registra estatísticas superiores
+            document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
+            document.getElementById('txtModTotal').innerText = totalModelosContados;
+
+            // Gera filtros dinâmicos por Fabricante na barra lateral
+            fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))];
+            document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
+            
+            const containerFab = document.getElementById('containerFiltroFabricante');
+            containerFab.innerHTML = '';
+            fabricantesDistintos.forEach(fab => {
+                containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
+            });
+
+            renderizarTabelaOperacional(dadosGlobaisBase);
+        }
+
+        function renderizarTabelaOperacional(listaFiltro) {
+            const corpo = document.getElementById('corpoTabela');
+            corpo.innerHTML = '';
+
+            if(listaFiltro.length === 0) {
+                corpo.innerHTML = `<tr><td colspan="4" class="status-carregando">Nenhum firmware atende aos critérios combinados de busca selecionados.</td></tr>`;
                 return;
             }
 
-            // Varre o array de objetos mapeando correspondências lógicas profundas
-            const dadosFiltrados = dadosAgrupadosCampo.filter(grupo => {
-                const matchFabricante = grupo.fabricante.toLowerCase().includes(termo);
-                const matchFirmware = grupo.firmware.toLowerCase().includes(termo);
-                const matchModelos = grupo.modelos.some(mod => mod.toLowerCase().includes(termo));
+            listaFiltro.forEach(item => {
+                const tr = document.createElement('tr');
+                const pastaFab = item.fabricante.toLowerCase().replace(/ /g, '_');
                 
-                // Mapeia se o termo coincide com tags de serviço
-                let matchServicos = false;
-                if (termo === 'vipline' && grupo.servicos.vipline) matchServicos = true;
-                if (termo === 'vipsip' && grupo.servicos.vipsip) matchServicos = true;
-                if ((termo === 'pabx' || termo === 'pabx virtual') && grupo.servicos.pabx) matchServicos = true;
-                if (termo === 'dados' && grupo.servicos.dados) matchServicos = true;
+                // Formatação das Tags de Serviços Ativos
+                let tagsHTML = `<div class="badge-servicos-container">`;
+                tagsHTML += `<span class="badge-tag ${item.vipline ? 'ativo' : ''}">VIPLINE</span>`;
+                tagsHTML += `<span class="badge-tag ${item.vipsip ? 'ativo' : ''}">VIPSIP</span>`;
+                tagsHTML += `<span class="badge-tag ${item.pabx ? 'ativo' : ''}">PABX</span>`;
+                tagsHTML += `<span class="badge-tag ${item.dados ? 'ativo' : ''}">DADOS</span>`;
+                tagsHTML += `</div>`;
 
-                return matchFabricante || matchFirmware || matchModelos || matchServicos;
+                tr.innerHTML = `
+                    <td><span class="badge-fabricante">${item.fabricante}</span></td>
+                    <td><strong>${item.modelos.join(' / ')}</strong></td>
+                    <td>${tagsHTML}</td>
+                    <td>
+                        <a href="./firmwares/${pastaFab}/${item.firmware}" class="btn-download-desktop" title="Clique para baixar o arquivo binário">
+                            📥 ${item.firmware}
+                        </a>
+                    </td>
+                `;
+                corpo.appendChild(tr);
+            });
+        }
+
+        // 🌟 FILTRAGEM MULTICRITÉRIO DINÂMICA: Cruza barra de busca + checkboxes laterais simultaneamente
+        function filtrarDados() {
+            const termoBusca = document.getElementById('inputBusca').value.toLowerCase().trim();
+            
+            // Captura filtros laterais de canais
+            const fVipline = document.getElementById('chkVipline').checked;
+            const fVipsip = document.getElementById('chkVipsip').checked;
+            const fPabx = document.getElementById('chkPabx').checked;
+            const fDados = document.getElementById('chkDados').checked;
+
+            // Captura filtros laterais de fabricante
+            const chksFabSelecionados = Array.from(document.querySelectorAll('.chk-fab:checked')).map(cb => cb.value);
+
+            const resultadoFiltrado = dadosGlobaisBase.filter(item => {
+                // Filtro 1: Barra de Busca
+                const matchTexto = termoBusca === "" || 
+                    item.fabricante.toLowerCase().includes(termoBusca) ||
+                    item.firmware.toLowerCase().includes(termoBusca) ||
+                    item.modelos.some(m => m.toLowerCase().includes(termoBusca));
+
+                // Filtro 2: Checkboxes de Canais (Modo cumulativo se marcados)
+                const matchVipline = !fVipline || item.vipline;
+                const matchVipsip = !fVipsip || item.vipsip;
+                const matchPabx = !fPabx || item.pabx;
+                const matchDados = !fDados || item.dados;
+
+                // Filtro 3: Checkboxes de Fabricante
+                const matchFabricante = chksFabSelecionados.length === 0 || chksFabSelecionados.includes(item.fabricante);
+
+                return matchTexto && matchVipline && matchVipsip && matchPabx && matchDados && matchFabricante;
             });
 
-            renderizarCardsCampoAgrupados(dadosFiltrados);
-        });
+            renderizarTabelaOperacional(resultadoFiltrado);
+        }
+
+        // Vincula a escuta do teclado na caixa de pesquisa principal
+        document.getElementById('inputBusca').addEventListener('input', filtrarDados);
 
         async function buscarUltimaAtualizacao() {
             try {
-                const urlCommits = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-                const res = await fetch(urlCommits);
-                if(res.ok) {
-                    const urlCommitsAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
-                    const resAPI = await fetch(urlCommitsAPI);
-                    if(resAPI.ok) {
-                        const dados = await resAPI.json();
-                        if(dados && dados.length > 0) {
-                            const dataCommit = new Date(dados.commit.committer.date);
-                            const dia = String(dataCommit.getDate()).padStart(2, '0');
-                            const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
-                            const horas = String(dataCommit.getHours()).padStart(2, '0');
-                            const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
-                            document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
-                        }
+                const urlCommitsAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
+                const resAPI = await fetch(urlCommitsAPI);
+                if(resAPI.ok) {
+                    const dados = await resAPI.json();
+                    if(dados && dados.length > 0) {
+                        const dataCommit = new Date(dados.commit.committer.date);
+                        const dia = String(dataCommit.getDate()).padStart(2, '0');
+                        const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
+                        const horas = String(dataCommit.getHours()).padStart(2, '0');
+                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
                     }
                 }
             } catch(e) {}
         }
 
-        carregarPlanilha();
+        sincronizarPortal();
         setTimeout(buscarUltimaAtualizacao, 1500);
     </script>
 </body>
