@@ -111,8 +111,8 @@
 
     </main>
 
-    <!-- Versão Alinhada V3.0 baseada nos escopos funcionais da V2.7 -->
-    <div class="marcador-versao" id="txtVersao">V3.0</div>
+    <!-- Versão do Painel Atualizada para V3.1 -->
+    <div class="marcador-versao" id="txtVersao">V3.1</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -143,13 +143,13 @@
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files);
+                tratarSelecaoArquivo(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files);
+                tratarSelecaoArquivo(fileInput.files[0]);
             }
         });
 
@@ -160,17 +160,25 @@
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
-            leitorTexto.onload = function(evt) {
+            
+            // 🌟 ATUALIZAÇÃO CRÍTICA V3.1: Usa .onloadend para garantir o carregamento completo do CSV do Excel na memória
+            leitorTexto.onloadend = function(evt) {
+                if (evt.target.readyState !== FileReader.DONE) return;
+
                 try {
                     const textoBruto = evt.target.result;
+                    if(!textoBruto || textoBruto.trim() === "") return;
+
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    const primeiraLinha = linhasBrutas || '';
+                    if(!linhasBrutas || linhasBrutas.length <= 1) return;
+
+                    const primeiraLinha = linhasBrutas[0] || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
 
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
                             break;
                         }
@@ -181,15 +189,15 @@
 
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
-                        if(colunas.length < 6) continue;
+                        if(!colunas || colunas.length < 6) continue;
 
-                        let fabricanteBruto = colunas;
-                        const vipline = colunas;
-                        const vipsip = colunas;
-                        const pabx = colunas;
-                        const dados = colunas;
-                        const modelo = colunas;
-                        const firmware = colunas ? colunas.trim() : ''; 
+                        let fabricanteBruto = colunas[0];
+                        const vipline = colunas[1];
+                        const vipsip = colunas[2];
+                        const pabx = colunas[3];
+                        const dados = colunas[4];
+                        const modelo = colunas[5];
+                        const firmware = colunas[8] ? colunas[8].trim() : ''; 
 
                         if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
                             ultimoFabricanteValido = fabricanteBruto;
@@ -218,8 +226,10 @@
                     }
 
                     const matrizAgrupada = Object.values(dicionarioFirmwares);
-                    gerarCardsNaTelaAgrupados(matrizAgrupada);
-                    salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
+                    if(matrizAgrupada && matrizAgrupada.length > 0) {
+                        gerarCardsNaTelaAgrupados(matrizAgrupada);
+                        salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
+                    }
 
                 } catch(errorInterno) {}
             };
@@ -341,7 +351,6 @@
             }
         }
 
-        // 🌟 ATUALIZAÇÃO FIÁVEL V3.0: Usa o motor síncrono da V2.7 para a conversão de Base64, evitando quebras em firmwares pesados
         function processarEnvioFirmware(id, pastaFab, nomeFirmware) {
             const token = tokenInput.value.trim();
             const statusLabel = document.getElementById(`status-card-${id}`);
@@ -359,8 +368,9 @@
                 statusLabel.innerText = "⏳ Carregando binário...";
 
                 const reader = new FileReader();
-                reader.readAsDataURL(inputArquivo.files);
-                reader.onload = function() {
+                reader.readAsDataURL(inputArquivo.files[0]);
+                reader.onloadend = function() {
+                    if (reader.readyState !== FileReader.DONE) return;
                     const base64Puro = reader.result.substring(reader.result.indexOf(',') + 1);
                     dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, base64Puro, token, statusLabel);
                 };
