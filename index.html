@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Portal de Suporte de Campo - Ativação - SC</title>
+    <style>
+        :root {
+            --claro-vermelho: #ee1d23;
+            --bg-pagina: #f4f5f7;
+            --bg-card: #ffffff;
+            --texto-principal: #111827;
+            --texto-mutado: #6b7280;
+            --borda: #e5e7eb;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-pagina); color: var(--texto-principal); padding: 16px; }
+        
+        header { margin-bottom: 24px; text-align: center; border-bottom: 4px solid var(--claro-vermelho); background-color: var(--bg-card); padding: 24px 16px; border-radius: 0 0 12px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        header h1 { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; }
+        header h1 span { color: var(--claro-vermelho); }
+        header p { color: var(--texto-mutado); font-size: 0.85rem; margin-top: 4px; }
+
+        .busca-container { margin-bottom: 20px; }
+        .busca-input { width: 100%; padding: 14px 16px; border-radius: 25px; border: 2px solid var(--borda); background-color: var(--bg-card); font-size: 1rem; outline: none; }
+        .busca-input:focus { border-color: var(--claro-vermelho); }
+
+        .grid-equipamentos { display: grid; grid-template-columns: 1fr; gap: 16px; }
+        @media (min-width: 768px) { .grid-equipamentos { grid-template-columns: repeat(2, 1fr); } }
+
+        .card-equipamento { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 12px; padding: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
+        .card-equipamento h2 { font-size: 1.1rem; display: flex; flex-direction: column; gap: 6px; border-bottom: 2px solid var(--bg-pagina); padding-bottom: 10px; margin-bottom: 16px; }
+        .fabricante-label { font-size: 0.8rem; color: var(--claro-vermelho); font-weight: bold; text-transform: uppercase; }
+        
+        .badges-servicos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+        .service-badge { font-size: 0.65rem; background-color: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--borda); }
+        
+        .memoria-info { font-size: 0.75rem; color: var(--texto-mutado); margin-bottom: 12px; }
+
+        .secao-links { margin-bottom: 12px; }
+        .secao-links h3 { font-size: 0.75rem; color: var(--texto-mutado); margin-bottom: 6px; text-transform: uppercase; }
+        
+        .link-suporte { display: flex; align-items: center; justify-content: space-between; color: var(--texto-principal); text-decoration: none; padding: 10px 12px; background-color: var(--bg-pagina); border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
+        .link-suporte:hover { background-color: var(--claro-vermelho); color: #ffffff; }
+        
+        .status-carregando { text-align: center; padding: 40px; color: var(--texto-mutado); }
+    </style>
+</head>
+<body>
+
+    <header>
+        <!-- Nome unificado com o painel ADM -->
+        <h1>Ativação - <span>SC</span></h1>
+        <p>Homologações Ativas de Engenharia • Visão de Campo Regional</p>
+    </header>
+
+    <div class="busca-container">
+        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Huawei)...">
+    </div>
+
+    <main class="grid-equipamentos" id="listaEquipamentos">
+        <div class="status-carregando">Processando matriz de engenharia...</div>
+    </main>
+
+    <script>
+        let dadosOriginais = [];
+
+        async function carregarPlanilha() {
+            try {
+                // Consome o CSV bruto enviado via painel admin
+                const resposta = await fetch('engenharia.csv?t=' + new Date().getTime());
+                const textoCSV = await resposta.text();
+                processarCSV(textoCSV);
+            } catch (erro) {
+                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Arquivo 'engenharia.csv' não encontrado. Realize o primeiro upload no painel ADM.</div>`;
+            }
+        }
+
+        function processarCSV(texto) {
+            const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            const separador = linhas[0].includes(';') ? ';' : ',';
+            
+            let indiceCabecalho = 0;
+            for(let i=0; i<linhas.length; i++) {
+                if(linhas[i].toLowerCase().includes('fabricante') && linhas[i].toLowerCase().includes('modelo')) {
+                    indiceCabecalho = i;
+                    break;
+                }
+            }
+
+            const cabecalhos = linhas[indiceCabecalho].split(separador).map(c => c.trim());
+
+            dadosOriginais = linhas.slice(indiceCabecalho + 1).map(linha => {
+                const colunas = linha.split(separador).map(v => v.trim());
+                let item = {};
+                cabecalhos.forEach((cab, idx) => {
+                    item[cab] = colunas[idx] || '';
+                });
+                return item;
+            });
+
+            dadosOriginais = dadosOriginais.filter(i => i['Modelo'] && i['Modelo'] !== '-');
+            renderizarCards(dadosOriginais);
+        }
+
+        function renderizarCards(lista) {
+            const container = document.getElementById('listaEquipamentos');
+            container.innerHTML = '';
+
+            lista.forEach(item => {
+                const fabPasta = item['Fabricante'].toLowerCase().replace(/ /g, '_');
+                const modNome = item['Modelo'].replace(/ /g, '_').replace(/\//g, '-');
+                const firmwareNome = item['Versão de'] || 'Não especificado';
+
+                // Mapeamento dinâmico dos canais de atendimento (Campos 1 a 5)
+                let servicosHTML = '';
+                if(item['VIPLINE'] === 'X') servicosHTML += `<span class="service-badge">VIPLINE</span>`;
+                if(item['VIPSIP'] === 'X') servicosHTML += `<span class="service-badge">VIPSIP</span>`;
+                if(item['PABX\nVirtual\n(Broadsoft\n)'] === 'X' || item['PABX Virtual'] === 'X') servicosHTML += `<span class="service-badge">PABX Virtual</span>`;
+                if(item['Dados'] === 'X') servicosHTML += `<span class="service-badge">Dados</span>`;
+
+                const card = document.createElement('div');
+                card.className = 'card-equipamento';
+                
+                // Rota lógica padrão para o download do firmware
+                let linkFirmware = `./firmwares/${fabPasta}/${firmwareNome}`;
+
+                card.innerHTML = `
+                    <h2>
+                        <span class="fabricante-label">${item['Fabricante']}</span>
+                        ${item['Modelo']}
+                        <div class="badges-servicos">${servicosHTML}</div>
+                    </h2>
+                    
+                    <div class="memoria-info">
+                        💾 FLASH: ${item['FLASH (MB'] || '-'} MB | 🧠 DRAM: ${item['DRAM (MB'] || '-'} MB
+                    </div>
+
+                    <div class="secao-links">
+                        <h3>📄 Documentação Base</h3>
+                        <a href="./docs/${fabPasta}/${modNome}_manual.pdf" target="_blank" class="link-suporte">Abrir Manual Técnico <span>➔</span></a>
+                    </div>
+
+                    <div class="secao-links">
+                        <h3>💾 Software Homologado</h3>
+                        <a href="${linkFirmware}" class="link-suporte">
+                            ${firmwareNome} <span>📥</span>
+                        </a>
+                    </div>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        // Sistema de busca unificado para campo
+        document.getElementById('inputBusca').addEventListener('input', function(e) {
+            const termo = e.target.value.toLowerCase();
+            const cards = document.querySelectorAll('.card-equipamento');
+            cards.forEach(card => {
+                card.style.display = card.innerText.toLowerCase().includes(termo) ? 'block' : 'none';
+            });
+        });
+
+        carregarPlanilha();
+    </script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Ativação - SC</title>
+    <script src="https://cloudflare.com"></script>
+    <style>
+        :root {
+            --claro-vermelho: #ee1d23;
+            --claro-vermelho-hover: #c91419;
+            --bg-pagina: #f4f5f7;
+            --bg-card: #ffffff;
+            --texto-principal: #111827;
+            --texto-mutado: #6b7280;
+            --borda: #e5e7eb;
+            --verde-sucesso: #16a34a;
+            --laranja-alerta: #ea580c;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background-color: var(--bg-pagina); color: var(--texto-principal); padding: 16px; }
+        
+        header { margin-bottom: 24px; border-bottom: 4px solid var(--claro-vermelho); background-color: var(--bg-card); padding: 20px 16px; border-radius: 0 0 12px 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        header h1 { font-size: 1.2rem; font-weight: 800; text-transform: uppercase; }
+        header h1 span { color: var(--claro-vermelho); }
+
+        .auth-box { display: flex; align-items: center; gap: 8px; }
+        .token-input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.85rem; outline: none; }
+        .status-dot { width: 10px; height: 10px; background-color: #9ca3af; border-radius: 50%; }
+        .status-dot.active { background-color: var(--verde-sucesso); }
+
+        .container { max-width: 1000px; margin: 0 auto; }
+
+        .upload-secao { background-color: var(--bg-card); border: 2px dashed var(--borda); border-radius: 12px; padding: 30px; text-align: center; margin-bottom: 24px; transition: border-color 0.2s; }
+        .upload-secao.dragover { border-color: var(--claro-vermelho); background-color: #fef2f2; }
+        .btn-claro { background-color: var(--claro-vermelho); color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 25px; cursor: pointer; font-size: 0.95rem; margin-top: 12px; display: inline-block; text-decoration: none; }
+        .btn-claro:hover { background-color: var(--claro-vermelho-hover); }
+        
+        .dashboard-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; display: none; }
+        .mini-card { background-color: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--borda); text-align: center; }
+        .mini-card h4 { font-size: 0.8rem; color: var(--texto-mutado); text-transform: uppercase; }
+        .mini-card p { font-size: 1.8rem; font-weight: bold; margin-top: 4px; }
+
+        .lista-pendencias h3 { font-size: 1.1rem; margin-bottom: 12px; color: var(--texto-principal); display: none; }
+        .card-pendencia { background-color: var(--bg-card); border: 1px solid var(--borda); border-left: 4px solid var(--laranja-alerta); border-radius: 8px; padding: 20px; margin-bottom: 16px; display: flex; flex-direction: column; gap: 12px; }
+        
+        .info-equipamento h4 { font-size: 1.1rem; margin-bottom: 2px; }
+        .info-equipamento p { font-size: 0.85rem; color: var(--texto-mutado); }
+        .info-equipamento strong { color: var(--laranja-alerta); }
+
+        .seletor-tipo { display: flex; gap: 16px; margin-top: 8px; font-size: 0.9rem; }
+        .seletor-tipo label { cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+        
+        .input-dinamico-container { margin-top: 8px; background-color: var(--bg-pagina); padding: 12px; border-radius: 6px; }
+        .alerta-limite { font-size: 0.75rem; color: var(--claro-vermelho); margin-top: 6px; font-weight: 500; }
+        
+        .input-url { width: 100%; padding: 10px; border: 1px solid var(--borda); border-radius: 6px; font-size: 0.9rem; outline: none; }
+        .input-url:focus { border-color: var(--claro-vermelho); }
+
+        .btn-salvar { background-color: var(--texto-principal); color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; align-self: flex-end; }
+        .btn-salvar:hover { background-color: #000; }
+    </style>
+</head>
+<body>
+
+    <header>
+        <!-- Nome ajustado conforme a solicitação da gerência -->
+        <h1>Ativação - <span>SC</span></h1>
+        <div class="auth-box">
+            <input type="password" id="inputToken" class="token-input" placeholder="Chave de Acesso GitHub (Token)">
+            <div id="statusConexao" class="status-dot" title="Chave não informada"></div>
+        </div>
+    </header>
+
+    <main class="container">
+        
+        <div class="upload-secao" id="dropzone">
+            <p id="uploadStatus">Arraste e solte o arquivo <strong>engenharia.csv</strong> enviado pela Engenharia de Rede aqui</p>
+            <input type="file" id="fileInput" accept=".csv" style="display: none;">
+            <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
+        </div>
+
+        <div class="dashboard-resumo" id="dashboard">
+            <div class="mini-card">
+                <h4>Modelos Analisados</h4>
+                <p id="txtTotal">0</p>
+            </div>
+            <div class="mini-card" style="border-bottom: 3px solid var(--laranja-alerta);">
+                <h4>Firmwares Ausentes</h4>
+                <p id="txtAusentes" style="color: var(--laranja-alerta);">0</p>
+            </div>
+        </div>
+
+        <div class="lista-pendencias">
+            <h3 id="tituloLista">Ações Técnicas Requeridas - Regional SC</h3>
+            <div id="containerCards"></div>
+        </div>
+
+    </main>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const tokenInput = document.getElementById('inputToken');
+        const statusConexao = document.getElementById('statusConexao');
+
+        tokenInput.addEventListener('input', () => {
+            if(tokenInput.value.trim().length > 10) {
+                statusConexao.className = 'status-dot active';
+                statusConexao.title = "Chave Admin Pronta";
+            } else {
+                statusConexao.className = 'status-dot';
+                statusConexao.title = "Chave não informada";
+            }
+        });
+
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if(files.length) processarPlanilha(files);
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if(fileInput.files.length) processarPlanilha(fileInput.files);
+        });
+
+        function processarPlanilha(file) {
+            document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${file.name}</strong>`;
+            
+            Papa.parse(file, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    gerarDashboardAuditoria(results.data);
+                }
+            });
+        }
+
+        function gerarDashboardAuditoria(dados) {
+            const itensValidos = dados.filter(linha => linha['Modelo'] && linha['Modelo'] !== '-');
+            
+            document.getElementById('dashboard').style.display = 'grid';
+            document.getElementById('tituloLista').style.display = 'block';
+            document.getElementById('txtTotal').innerText = itensValidos.length;
+            document.getElementById('txtAusentes').innerText = itensValidos.length;
+
+            const container = document.getElementById('containerCards');
+            container.innerHTML = '';
+
+            itensValidos.forEach((item, index) => {
+                const firmwareNome = item['Versão de'] || 'Não especificado';
+                const card = document.createElement('div');
+                card.className = 'card-pendencia';
+                card.id = `card-${index}`;
+
+                card.innerHTML = `
+                    <div class="info-equipamento">
+                        <h4>${item['Fabricante']} ${item['Modelo']}</h4>
+                        <p>Firmware Requerido pela Engenharia: <strong>${firmwareNome}</strong></p>
+                    </div>
+                    
+                    <div class="seletor-tipo">
+                        <label>
+                            <input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')">
+                            Arquivo Local (Até 100MB)
+                        </label>
+                        <label>
+                            <input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')">
+                            Link Externo (Acima de 100MB)
+                        </label>
+                    </div>
+
+                    <div class="input-dinamico-container" id="container-input-${index}">
+                        <input type="file" id="file-upload-${index}">
+                        <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
+                    </div>
+
+                    <button class="btn-salvar" onclick="salvarAtualizacao(${index})">Salvar Atualização</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function alternarInput(id, tipo) {
+            const container = document.getElementById(`container-input-${id}`);
+            if (tipo === 'local') {
+                container.innerHTML = `
+                    <input type="file" id="file-upload-${id}">
+                    <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
+                `;
+            } else {
+                container.innerHTML = `
+                    <input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">
+                `;
+            }
+        }
+
+        function salvarAtualizacao(id) {
+            const card = document.getElementById(`card-${id}`);
+            card.style.opacity = '0.3';
+            setTimeout(() => {
+                card.remove();
+                const contador = document.getElementById('txtAusentes');
+                contador.innerText = Math.max(0, parseInt(contador.innerText) - 1);
+            }, 500);
+        }
+    </script>
+</body>
+</html>
