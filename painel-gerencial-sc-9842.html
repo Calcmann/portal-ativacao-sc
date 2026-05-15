@@ -78,7 +78,6 @@
             border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Botão de contingência */
         .btn-contingencia { background-color: var(--verde-sucesso); color: white; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 0.85rem; margin-top: 8px; border: none; cursor: pointer; }
         .btn-contingencia:hover { background-color: #117a3b; }
     </style>
@@ -104,7 +103,7 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Módulo local carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor nativo V1.8 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -125,15 +124,9 @@
 
     </main>
 
-    <!-- Versão Atualizada para V1.7 -->
-    <div class="marcador-versao" id="txtVersao">V1.7</div>
+    <!-- Versão Incrementada para V1.8 -->
+    <div class="marcador-versao" id="txtVersao">V1.8</div>
 
-    <!-- MÓDULO EMBUTIDO PAPAPARSE -->
-    <script>
-        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e)return{data:[],errors:[]};var f=e.split(e.includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[c].includes(";")?";":",");if(!(d&&1===m.length&&""===m)){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
-    </script>
-
-    <!-- MOTOR DE AUTOMAÇÃO PRINCIPAL DO SITE -->
     <script>
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
@@ -141,7 +134,6 @@
         const statusConexao = document.getElementById('statusConexao');
         const caixaLog = document.getElementById('caixaLog');
 
-        // AJUSTE OPERACIONAL OBRIGATÓRIO (Preencha com seus dados do GitHub)
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -171,82 +163,81 @@
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            registrarLog("Arquivo solto via Drag & Drop.");
-            const dt = e.dataTransfer;
-            if(dt && dt.files && dt.files.length > 0) {
-                extrairEProcessar(dt.files[0]); // Captura o arquivo de forma direta
+            registrarLog("Arquivo recebido via Drag & Drop.");
+            if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+                tratarSelecaoArquivo(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
-            registrarLog("Arquivo selecionado via clique.");
+            registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                extrairEProcessar(fileInput.files[0]); // Captura o arquivo de forma direta
+                tratarSelecaoArquivo(fileInput.files[0]);
             }
         });
 
-        function extrairEProcessar(arquivoPuro) {
-            try {
-                registrarLog(`Isolado com sucesso: ${arquivoPuro.name} (${arquivoPuro.size} bytes)`);
-                tratarSelecaoArquivo(arquivoPuro);
-            } catch(err) {
-                registrarLog(`❌ Erro no isolamento: ${err.message}`);
-            }
-        }
-
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Abortado: Objeto sem propriedade .name.");
+                registrarLog("❌ Erro: Arquivo corrompido ou inválido.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor de leitura de tabelas embutido (V1.7)...");
+            registrarLog("Executando motor de quebra de strings nativo V1.8...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
                 try {
                     const textoBruto = evt.target.result;
-                    registrarLog("Texto bruto do arquivo lido. Decodificando colunas...");
+                    registrarLog("Texto bruto obtido em memória. Iniciando mapeamento de linhas...");
                     
-                    const resultado = Papa.parse(textoBruto, {
-                        header: true,
-                        skipEmptyLines: true,
-                        transformHeader: function(header) {
-                            return header.replace(/[\r\n\t]+/g, " ").trim();
-                        }
-                    });
+                    // 🌟 PARSER NATIVO V1.8: Quebra linhas limpando quebras ocultas (\r e \n)
+                    const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+                    registrarLog(`Estrutura detectada: ${linhasBrutas.length} linhas brutas encontradas.`);
+                    
+                    // Identifica o separador correto (Vírgula ou Ponto e Vírgula do Excel BR)
+                    const primeiraLinha = linhasBrutas[0] || '';
+                    const separador = primeiraLinha.includes(';') ? ';' : ',';
+                    registrarLog(`Separador de tabela mapeado com sucesso: [ ${separador} ]`);
 
-                    registrarLog(`Leitura local concluída. ${resultado.data.length} linhas processadas.`);
-                    gerarDashboardAuditoria(resultado.data);
+                    // Higieniza e mapeia os cabeçalhos da primeira linha
+                    const cabecalhos = primeiraLinha.split(separador).map(c => c.replace(/[\r\n\t\"]+/g, " ").trim());
                     
-                    // Dispara o upload enviando o texto bruto para conversão segura
+                    // Transforma o texto em objetos manipuláveis
+                    const matrizDados = [];
+                    for(let i = 1; i < linhasBrutas.length; i++) {
+                        const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"]/g, "").trim());
+                        let objLinha = {};
+                        cabecalhos.forEach((cab, idx) => {
+                            objLinha[cab] = colunas[idx] || '';
+                        });
+                        matrizDados.push(objLinha);
+                    }
+
+                    registrarLog(`Leitura concluída. ${matrizDados.length} objetos criados.`);
+                    gerarDashboardAuditoria(matrizDados);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
-                    registrarLog(`❌ Erro interno de processamento de colunas: ${errorInterno.message}`);
+                    registrarLog(`❌ Erro de processamento interno: ${errorInterno.message}`);
                 }
             };
         }
 
-        // 🌟 ATUALIZAÇÃO V1.7: Camada Híbrida Automática / Contingência Manual contra Bloqueio de Proxy Claro
         async function salvarCSVNoGithub(nomeOriginal, textoPlain) {
             const token = tokenInput.value.trim();
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
             const uploadStatus = document.getElementById('uploadStatus');
 
-            // Conversão UTF-8 Limpa para CSV
-            const csvProntoParaSalvar = textoPlain;
-
             if(!token) {
-                registrarLog("⚠️ Modo Visual Ativado: Chave em branco.");
-                ativarInterfaceContingencia(csvProntoParaSalvar);
+                registrarLog("⚠️ Modo de visualização offline ativo (Chave vazia).");
+                ativarInterfaceContingencia(textoPlain);
                 return;
             }
 
-            registrarLog("Iniciando codificação de segurança para a API...");
+            registrarLog("Codificando arquivo em Base64...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
             
@@ -265,6 +256,7 @@
             } catch(e) {}
 
             progressBar.style.width = '75%';
+            registrarLog("Enviando requisição de rede para a API do GitHub...");
 
             const payload = {
                 message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
@@ -288,46 +280,43 @@
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#16a34a';
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                    registrarLog("✅ Sincronização concluída via API!");
+                    registrarLog("✅ Upload concluído com sucesso via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    registrarLog(`⚠️ Conexão API recusada. Ativando Contingência de Firewall...`);
-                    ativarInterfaceContingencia(csvProntoParaSalvar);
+                    registrarLog(`⚠️ Firewall ativado. Alternando para Rota de Contingência...`);
+                    ativarInterfaceContingencia(textoPlain);
                 }
             } catch(errFetch) {
-                registrarLog(`⚠️ Firewall detectado (Failed to fetch). Ativando Contingência de Firewall...`);
-                ativarInterfaceContingencia(csvProntoParaSalvar);
+                registrarLog(`⚠️ Rota API bloqueada por proxy. Alternando para Rota de Contingência...`);
+                ativarInterfaceContingencia(textoPlain);
             }
         }
 
-        // Função que gera a rota alternativa caso a rede bloqueie o script
-        function ativarInterfaceContingencia(textoPlano) {
+        function activarInterfaceContingencia(textoPlano) {
             const progressContainer = document.getElementById('progressContainer');
             const uploadStatus = document.getElementById('uploadStatus');
-            
             progressContainer.style.display = 'none';
             
-            // Injeta os botões auxiliares na caixa cinza de upload
             uploadStatus.innerHTML = `
-                <span style="color:var(--laranja-alerta);">🔒 <strong>Proxy Corporativo Detectado!</strong></span><br>
-                A planilha foi processada na tela. Use a rota rápida alternativa para salvar na nuvem:<br><br>
+                <span style="color:var(--laranja-alerta);">🔒 <strong>Bloqueio de Firewall Detectado!</strong></span><br>
+                A planilha foi tratada localmente. Use o atalho manual para sincronizar:<br><br>
                 <button class="btn-contingencia" id="btnCopiarTexto">📋 Copiar Dados da Planilha</button>
                 <a href="https://github.com{GITHUB_USER}/${GITHUB_REPO}/edit/main/engenharia.csv" target="_blank" class="btn-contingencia" style="background-color:#24292e;">➔ Abrir Página do GitHub</a>
             `;
 
             document.getElementById('btnCopiarTexto').addEventListener('click', () => {
                 navigator.clipboard.writeText(textoPlano);
-                registrarLog("Dados da planilha copiados para a área de transferência.");
-                alert("✅ Conteúdo copiado! Agora clique no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página do GitHub.");
+                registrarLog("Dados copiados para a área de transferência.");
+                alert("✅ Copiado! Agora abra a página do GitHub no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página.");
             });
         }
 
         function gerarDashboardAuditoria(dados) {
-            registrarLog("Montando filtros e injetando cards de hardware na tela...");
+            registrarLog("Filtrando modelos válidos e montando os cards...");
             const itensValidos = dados.filter(linha => {
                 const chaves = Object.keys(linha);
                 const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
-                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '-';
+                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '-' && linha[chaveModelo].trim() !== '';
             });
             
             document.getElementById('dashboard').style.display = 'grid';
@@ -369,7 +358,7 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog(`Cards injetados com sucesso. Painel operacional.`);
+            registrarLog("Painel atualizado e operacional com os novos cards.");
         }
 
         function alternarInput(id, tipo) {
