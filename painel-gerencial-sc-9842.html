@@ -49,6 +49,7 @@
         .info-equipamento h4 { font-size: 1.1rem; margin-bottom: 2px; }
         .info-equipamento p { font-size: 0.85rem; color: var(--texto-mutado); }
         .info-equipamento strong { color: var(--laranja-alerta); }
+        .modelos-badge-lista { font-size: 0.8rem; background-color: #f3f4f6; padding: 4px 8px; border-radius: 4px; color: #374151; font-weight: 500; display: inline-block; margin-top: 4px; border: 1px solid var(--borda); }
 
         .seletor-tipo { display: flex; gap: 16px; margin-top: 8px; font-size: 0.9rem; }
         .seletor-tipo label { cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
@@ -103,16 +104,16 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V2.2 Carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor de agrupamento V2.3 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
             <div class="mini-card">
-                <h4>Modelos Analisados</h4>
+                <h4>Firmwares Únicos Requeridos</h4>
                 <p id="txtTotal">0</p>
             </div>
             <div class="mini-card" style="border-bottom: 3px solid var(--laranja-alerta);">
-                <h4>Firmwares Ausentes</h4>
+                <h4>Arquivos Pendentes</h4>
                 <p id="txtAusentes" style="color: var(--laranja-alerta);">0</p>
             </div>
         </div>
@@ -124,8 +125,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.2 -->
-    <div class="marcador-versao" id="txtVersao">V2.2</div>
+    <!-- Versão Atualizada para V2.3 -->
+    <div class="marcador-versao" id="txtVersao">V2.3</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -165,76 +166,83 @@
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Captura o arquivo isolado correto
+                tratarSelecaoArquivo(e.dataTransfer.files);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]); // Captura o arquivo isolado correto
+                tratarSelecaoArquivo(fileInput.files);
             }
         });
 
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Erro: Falha ao isolar arquivo físico.");
+                registrarLog("❌ Erro: Falha ao carregar o arquivo.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor V2.2 de Limpeza de Aspas Ocultas...");
+            registrarLog("Executando leitor V2.3 com consolidação de colunas...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
                 try {
                     const textoBruto = evt.target.result;
-                    registrarLog("Texto bruto obtido com sucesso.");
+                    registrarLog("Texto bruto em memória.");
                     
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    if(linhasBrutas.length <= 1) {
-                        registrarLog("❌ Erro: O arquivo possui apenas cabeçalho ou está em branco.");
-                        return;
-                    }
-
-                    const primeiraLinha = linhasBrutas[0];
+                    const primeiraLinha = linhasBrutas || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador detectado: [ ${separador} ]`);
+                    registrarLog(`Separador ativo: [ ${separador} ]`);
 
+                    // Varre para achar a linha correta de cabeçalho
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
-                            registrarLog(`Cabeçalho localizado no índice: ${i}`);
                             break;
                         }
                     }
 
-                    const matrizDados = [];
+                    // Objeto dicionário para agrupar modelos por firmware único
+                    const dicionarioFirmwares = {};
+
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
-                        // 🌟 ATUALIZAÇÃO V2.2: Remove aspas textuais estruturais e espaços fantasmas de todas as colunas
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                         
                         if(colunas.length < 6) continue;
 
-                        const fabricante = colunas[0]; 
-                        const modelo = colunas[5];     
-                        const firmware = colunas[8] || 'Não especificado'; 
+                        const fabricante = colunas.trim() || 'Claro S.A.';
+                        const modelo = colunas.trim();     
+                        const firmware = colunas.trim(); 
 
-                        // Filtro ultra-tolerante para resgatar as 63 linhas homologadas da Claro
-                        if(modelo && modelo !== '-' && modelo !== '') {
-                            matrizDados.push({
-                                fabricante: fabricante || 'Claro S.A.',
-                                modelo: modelo,
-                                firmware: firmware
-                            });
+                        if(modelo && modelo !== '-' && firmware && firmware !== '-') {
+                            // Chave unificada para agrupar fabricante + firmware idênticos
+                            const chaveGrupo = `${fabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+
+                            if(!dicionarioFirmwares[chaveGrupo]) {
+                                dicionarioFirmwares[chaveGrupo] = {
+                                    fabricante: fabricante,
+                                    firmware: firmware,
+                                    modelos: []
+                                };
+                            }
+                            // Adiciona o modelo na lista se não estiver repetido
+                            if(!dicionarioFirmwares[chaveGrupo].modelos.includes(modelo)){
+                                dicionarioFirmwares[chaveGrupo].modelos.push(modelo);
+                            }
                         }
                     }
 
-                    registrarLog(`Processamento concluído. ${matrizDados.length} equipamentos mapeados com sucesso.`);
-                    gerarCardsNaTela(matrizDados);
+                    // Converte o dicionário de volta para uma matriz limpa de grupos
+                    const matrizAgrupada = Object.values(dicionarioFirmwares);
+                    registrarLog(`Agrupamento concluído: ${matrizAgrupada.length} firmwares distintos localizados.`);
+                    
+                    gerarCardsNaTelaAgrupados(matrizAgrupada);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
@@ -250,12 +258,12 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Modo offline ativo (Chave de acesso vazia).");
+                registrarLog("⚠️ Modo de contingência manual ativo.");
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
 
-            registrarLog("Codificando matriz em Base64...");
+            registrarLog("Codificando para o GitHub...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
             
@@ -263,7 +271,6 @@
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
             
             progressBar.style.width = '50%';
-
             let shaExistente = null;
             try {
                 const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
@@ -300,11 +307,9 @@
                     registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    registrarLog(`⚠️ Rota API recusada. Ativando Contingência...`);
                     ativarInterfaceContingencia(textoPlain);
                 }
             } catch(errFetch) {
-                registrarLog(`⚠️ Conexão de rede bloqueada. Ativando Contingência...`);
                 ativarInterfaceContingencia(textoPlain);
             }
         }
@@ -315,41 +320,46 @@
             progressContainer.style.display = 'none';
             
             uploadStatus.innerHTML = `
-                <span style="color:var(--laranja-alerta);">🔒 <strong>Painel Pronto! Sincronização requerida:</strong></span><br>
-                A planilha foi tratada localmente. Use o atalho manual para salvar no repositório:<br><br>
+                <span style="color:var(--laranja-alerta);">🔒 <strong>Painel Pronto! Sincronização manual liberada:</strong></span><br>
+                A planilha foi consolidada localmente. Use o atalho para salvar no repositório:<br><br>
                 <button class="btn-contingencia" id="btnCopiarTexto">📋 Copiar Dados da Planilha</button>
                 <a href="https://github.com{GITHUB_USER}/${GITHUB_REPO}/edit/main/engenharia.csv" target="_blank" class="btn-contingencia" style="background-color:#24292e;">➔ Abrir Página do GitHub</a>
             `;
 
             document.getElementById('btnCopiarTexto').addEventListener('click', () => {
                 navigator.clipboard.writeText(textoPlano);
-                registrarLog("Dados copiados para a área de transferência.");
-                alert("✅ Copiado! Agora abra a página do GitHub no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página.");
+                registrarLog("Dados da planilha copiados.");
+                alert("✅ Conteúdo copiado! Agora abra a página do GitHub no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página.");
             });
         }
 
-        function gerarCardsNaTela(itensValidos) {
+        // 🌟 ATUALIZAÇÃO V2.3: Injeção de cards unificados agrupados por firmware
+        function gerarCardsNaTelaAgrupados(itensGrupos) {
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
-            document.getElementById('txtTotal').innerText = itensValidos.length;
-            document.getElementById('txtAusentes').innerText = itensValidos.length;
+            document.getElementById('txtTotal').innerText = itensGrupos.length;
+            document.getElementById('txtAusentes').innerText = itensGrupos.length;
 
             const container = document.getElementById('containerCards');
             container.innerHTML = '';
 
-            itensValidos.forEach((item, index) => {
+            itensGrupos.forEach((grupo, index) => {
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
 
+                // Transforma a lista de modelos em texto amigável separado por barras
+                const modelosTexto = grupo.modelos.join(" / ");
+
                 card.innerHTML = `
                     <div class="info-equipamento">
-                        <h4>${item.fabricante} ${item.modelo}</h4>
-                        <p>Firmware Requerido pela Engenharia: <strong>${item.firmware}</strong></p>
+                        <h4>Fabricante: ${grupo.fabricante}</h4>
+                        <div class="modelos-badge-lista">📟 Modelos Compatíveis: <strong>${modelosTexto}</strong></div>
+                        <p style="margin-top:8px;">Arquivo do Software Alvo: <strong>${grupo.firmware}</strong></p>
                     </div>
                     <div class="seletor-tipo">
-                        <label><input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')"> Arquivo Local (Até 100MB)</label>
-                        <label><input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')"> Link Externo (Acima de 100MB)</label>
+                        <label><input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')"> Arquivo Local</label>
+                        <label><input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')"> Link Externo</label>
                     </div>
                     <div class="input-dinamico-container" id="container-input-${index}">
                         <input type="file" id="file-upload-${index}">
@@ -359,7 +369,7 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog("Painel 100% renderizado com os índices fixos.");
+            registrarLog("Relação de cards consolidados gerada com sucesso na tela.");
         }
 
         function alternarInput(id, tipo) {
