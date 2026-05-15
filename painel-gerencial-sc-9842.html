@@ -96,8 +96,9 @@
             <input type="file" id="fileInput" accept=".csv" style="display: none;">
             <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
             
+            <!-- Barra de Progresso Corrigida -->
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
-                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.3s ease;"></div>
+                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
         </div>
 
@@ -127,7 +128,7 @@
         const tokenInput = document.getElementById('inputToken');
         const statusConexao = document.getElementById('statusConexao');
 
-        // AJUSTE OBRIGATÓRIO: Insira aqui os dados da sua conta do GitHub
+        // Configurações do Repositório
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -148,24 +149,30 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
-        // CORREÇÃO: Força o isolamento do primeiro arquivo vindo do arrastar
+        // Captura e extrai o arquivo de forma isolada
         dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
             const dt = e.dataTransfer;
-            const files = dt.files;
-            if(files.length > 0) tratarSelecaoArquivo(files[0]);
+            if(dt.files.length > 0) {
+                tratarSelecaoArquivo(dt.files[0]); // Pega estritamente o arquivo [0]
+            }
         });
 
-        // CORREÇÃO: Força o isolamento do primeiro arquivo vindo do botão
         fileInput.addEventListener('change', (e) => {
-            if(fileInput.files.length > 0) tratarSelecaoArquivo(fileInput.files[0]);
+            if(fileInput.files.length > 0) {
+                tratarSelecaoArquivo(fileInput.files[0]); // Pega estritamente o arquivo [0]
+            }
         });
 
         function tratarSelecaoArquivo(arquivoUnico) {
-            if (!arquivoUnico || !arquivoUnico.name) return;
+            if (!arquivoUnico || !arquivoUnico.name) {
+                document.getElementById('uploadStatus').innerText = "⚠️ Falha ao isolar o objeto do arquivo.";
+                return;
+            }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoUnico.name}</strong>`;
             
-            // 1. Processamento local do PapaParse usando o arquivo tratado
+            // 1. Processamento local do PapaParse
             Papa.parse(arquivoUnico, {
                 header: true,
                 skipEmptyLines: true,
@@ -174,7 +181,7 @@
                 }
             });
 
-            // 2. Dispara a subida do arquivo para a API do GitHub
+            // 2. Dispara o upload enviando o objeto de arquivo tratado
             salvarCSVNoGithub(arquivoUnico);
         }
 
@@ -185,31 +192,32 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                alert("⚠️ Planilha processada na tela, mas NÃO foi salva no GitHub porque a Chave de Acesso (Token) está vazia!");
+                uploadStatus.innerHTML = `⚠️ Planilha processada na tela, mas <strong>NÃO foi salva no GitHub</strong> porque a Chave de Acesso (Token) está vazia!`;
                 return;
             }
 
+            // Exibe e reseta a barra de progresso
             progressContainer.style.display = 'block';
-            progressBar.style.width = '0%';
+            progressBar.style.width = '10%';
             progressBar.style.background = '#ee1d23';
-            uploadStatus.innerHTML = `Preparando envio de: <strong>${arquivo.name}</strong>`;
+            uploadStatus.innerHTML = `Carregando dados de: <strong>${arquivo.name}</strong>`;
 
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
             const reader = new FileReader();
             
             reader.onprogress = (e) => {
                 if (e.lengthComputable) {
-                    const porcentagem = Math.round((e.loaded / e.total) * 50);
+                    const porcentagem = Math.round((e.loaded / e.total) * 40) + 10;
                     progressBar.style.width = `${porcentagem}%`;
                 }
             };
 
             reader.readAsDataURL(arquivo);
             reader.onload = async () => {
-                const conteudoBase64 = reader.result.split(',')[1];
+                const conteudoBase64 = reader.result.split(',')[1]; // Captura apenas a string Base64 limpa
                 
-                uploadStatus.innerHTML = `Conectando ao servidor do GitHub...`;
-                progressBar.style.width = '65%';
+                uploadStatus.innerHTML = `Buscando histórico do arquivo no repositório...`;
+                progressBar.style.width = '60%';
 
                 let shaExistente = null;
                 try {
@@ -221,7 +229,7 @@
                 } catch(e) {}
 
                 progressBar.style.width = '80%';
-                uploadStatus.innerHTML = `Gravando alterações na nuvem...`;
+                uploadStatus.innerHTML = `Fazendo upload e gravando alterações na nuvem...`;
 
                 const payload = {
                     message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
@@ -241,7 +249,7 @@
 
                 if(resUpload.ok) {
                     progressBar.style.width = '100%';
-                    progressBar.style.background = '#16a34a';
+                    progressBar.style.background = '#16a34a'; // Muda para verde
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
                     
                     setTimeout(() => {
@@ -250,17 +258,13 @@
                 } else {
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#ee1d23';
-                    uploadStatus.innerHTML = `❌ <strong>Erro ao gravar no GitHub. Verifique as configurações.</strong>`;
+                    uploadStatus.innerHTML = `❌ <strong>Erro na API do GitHub. Verifique se o nome do usuário e do repositório nas linhas 112 e 113 estão corretos.</strong>`;
                 }
             };
         }
 
         function gerarDashboardAuditoria(dados) {
-            const itensValidos = dados.filter(linha => {
-                // Remove espaços em branco dos nomes das chaves do objeto
-                const chaves = Object.keys(linha).map(k => k.trim());
-                return linha['Modelo'] && linha['Modelo'] !== '-';
-            });
+            const itensValidos = dados.filter(linha => linha['Modelo'] && linha['Modelo'] !== '-');
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
