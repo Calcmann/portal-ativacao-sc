@@ -62,6 +62,7 @@
 
         .status-carregando { padding: 40px; text-align: center; color: var(--texto-mutado); font-weight: 500; }
         .marcador-versao { position: fixed; bottom: 16px; right: 16px; background-color: var(--texto-principal); color: white; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 9999; }
+        .terminal-log { width: 100%; background-color: #1e1e1e; color: #f5c400; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; padding: 12px; border-radius: 6px; margin-top: 12px; max-height: 120px; overflow-y: auto; text-align: left; }
     </style>
 </head>
 <body>
@@ -121,7 +122,10 @@
                     </thead>
                     <tbody id="corpoTabela">
                         <tr>
-                            <td colspan="4" class="status-carregando">Sincronizando console com a base de dados do GitHub...</td>
+                            <td colspan="4" class="status-carregando">
+                                Sincronizando console com a base de dados do GitHub...
+                                <div class="terminal-log" id="caixaLog">> Iniciando subsistema de diagnóstico de campo...</div>
+                            </td>
                         </tr>
                     </tbody>
                 </table>
@@ -129,107 +133,140 @@
         </section>
     </div>
 
-    <div class="marcador-versao" id="txtVersao">V3.3</div>
+    <!-- Versão Incrementada para V3.5 -->
+    <div class="marcador-versao" id="txtVersao">V3.5</div>
 
     <script>
         let dadosGlobaisBase = [];
         let fabricantesDistintos = [];
 
+        // Substitua com os dados reais do seu repositório público
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
-        async function sincronizarPortal() {
-            try {
-                // Força o desvio de cache do navegador usando timestamp em milissegundos
-                const urlEngenharia = 'engenharia.csv?t=' + new Date().getTime();
-                const resposta = await fetch(urlEngenharia);
-                const textoPlanoCSV = await resposta.text();
-                processarMatrizCSVNativa(textoPlanoCSV);
-            } catch (e) {
-                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Conexão. Base de dados inacessível ou vazia no repositório.</td></tr>`;
+        function registrarLog(mensagem) {
+            const timestamp = new Date().toLocaleTimeString();
+            const caixaLog = document.getElementById('caixaLog');
+            if(caixaLog) {
+                caixaLog.innerHTML += `<br>> [${timestamp}] ${mensagem}`;
+                caixaLog.scrollTop = caixaLog.scrollHeight;
             }
         }
 
-        // 🌟 MOTOR ATUALIZADO V3.3: Baseado estritamente na mecânica de posição e forward fill do painel gerencial
-        function processarMatrizCSVNativa(texto) {
-            const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if(linhasBrutas.length <= 1) return;
-
-            const primeiraLinha = linhasBrutas[0];
-            const separador = primeiraLinha.includes(';') ? ';' : ',';
-
-            let indiceTabela = 0;
-            for(let i = 0; i < linhasBrutas.length; i++) {
-                const colTeste = linhasBrutas[i].split(separador);
-                if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
-                    indiceTabela = i;
-                    break;
-                }
-            }
-
-            const dicionarioAgrupamento = {};
-            let ultimoFabricanteValido = "Claro S.A.";
-            let totalModelosContados = 0;
-
-            for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
-                const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
+        async function sincronizarPortal() {
+            try {
+                const urlEngenharia = 'engenharia.csv?t=' + new Date().getTime();
+                registrarLog(`Requisitando sincronismo de arquivo: ${urlEngenharia}`);
                 
-                if(colunas.length < 6) continue;
-
-                let fabricanteBruto = colunas[0];
-                const vipline = colunas[1];
-                const vipsip = colunas[2];
-                const pabx = colunas[3];
-                const dados = colunas[4];
-                const modelo = colunas[5];
-                const firmware = colunas[8] ? colunas[8].trim() : '';
-
-                if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
-                    ultimoFabricanteValido = fabricanteBruto;
+                const resposta = await fetch(urlEngenharia);
+                registrarLog(`Resposta HTTP recebida. Status: ${resposta.status}`);
+                
+                if(!resposta.ok) {
+                    registrarLog(`❌ Erro HTTP ${resposta.status}`);
+                    return;
                 }
 
-                if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
-                    totalModelosContados++;
-                    const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
-
-                    if(!dicionarioAgrupamento[chaveGrupo]) {
-                        dicionarioAgrupamento[chaveGrupo] = {
-                            fabricante: ultimoFabricanteValido,
-                            firmware: firmware,
-                            modelos: [],
-                            vipline: false, vipsip: false, pabx: false, dados: false
-                        };
-                    }
-                    
-                    if(!dicionarioAgrupamento[chaveGrupo].modelos.includes(modelo)){
-                        dicionarioAgrupamento[chaveGrupo].modelos.push(modelo);
-                    }
-
-                    if(vipline === 'X') dicionarioAgrupamento[chaveGrupo].vipline = true;
-                    if(vipsip === 'X') dicionarioAgrupamento[chaveGrupo].vipsip = true;
-                    if(pabx === 'X') dicionarioAgrupamento[chaveGrupo].pabx = true;
-                    if(dados === 'X') dicionarioAgrupamento[chaveGrupo].dados = true;
-                }
+                const textoPlanoCSV = await resposta.text();
+                registrarLog(`Dados baixados (${textoPlanoCSV.length} caracteres). Processando...`);
+                processarMatrizCSVNativa(textoPlanoCSV);
+            } catch (e) {
+                registrarLog(`❌ Erro fatal de rede/CORS: ${e.message}`);
             }
+        }
 
-            // Converte para array e aplica a ordenação alfabética por FABRICANTE solicitada
-            dadosGlobaisBase = Object.values(dicionarioAgrupamento).sort((a, b) => {
-                return a.fabricante.localeCompare(b.fabricante, 'pt', { sensitivity: 'base' });
-            });
-            
-            document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
-            document.getElementById('txtModTotal').innerText = totalModelosContados;
+        function processarMatrizCSVNativa(texto) {
+            try {
+                const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+                registrarLog(`Mapeando quebra de linhas: ${linhasBrutas.length} linhas detectadas.`);
 
-            fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
-            document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
-            
-            const containerFab = document.getElementById('containerFiltroFabricante');
-            containerFab.innerHTML = '';
-            fabricantesDistintos.forEach(fab => {
-                containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
-            });
+                if(linhasBrutas.length <= 1) {
+                    registrarLog("⚠️ Matriz sem linhas de dados válidas.");
+                    return;
+                }
 
-            renderizarTabelaOperacional(dadosGlobaisBase);
+                const primeiraLinha = linhasBrutas[0];
+                const separador = primeiraLinha.includes(';') ? ';' : ',';
+                registrarLog(`Análise de separador concluída: [ ${separador} ]`);
+
+                let indiceTabela = 0;
+                for(let i = 0; i < linhasBrutas.length; i++) {
+                    const colTeste = linhasBrutas[i].split(separador);
+                    if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        indiceTabela = i;
+                        registrarLog(`Cabeçalho localizado no índice: ${i}`);
+                        break;
+                    }
+                }
+
+                const dicionarioAgrupamento = {};
+                let ultimoFabricanteValido = "Claro S.A.";
+                let totalModelosContados = 0;
+
+                for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
+                    const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
+                    
+                    if(colunas.length < 6) continue;
+
+                    let fabricanteBruto = colunas[0];
+                    const vipline = colunas[1];
+                    const vipsip = colunas[2];
+                    const pabx = colunas[3];
+                    const dados = colunas[4];
+                    const modelo = colunas[5];
+                    const firmware = colunas[8] ? colunas[8].trim() : '';
+
+                    if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
+                        ultimoFabricanteValido = fabricanteBruto;
+                    }
+
+                    if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
+                        totalModelosContados++;
+                        const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
+
+                        if(!dicionarioAgrupamento[chaveGrupo]) {
+                            dicionarioAgrupamento[chaveGrupo] = {
+                                fabricante: ultimoFabricanteValido,
+                                firmware: firmware,
+                                modelos: [],
+                                vipline: false, vipsip: false, pabx: false, dados: false
+                            };
+                        }
+                        
+                        if(!dicionarioAgrupamento[chaveGrupo].modelos.includes(modelo)){
+                            dicionarioAgrupamento[chaveGrupo].modelos.push(modelo);
+                        }
+
+                        if(vipline === 'X') dicionarioAgrupamento[chaveGrupo].vipline = true;
+                        if(vipsip === 'X') dicionarioAgrupamento[chaveGrupo].vipsip = true;
+                        if(pabx === 'X') dicionarioAgrupamento[chaveGrupo].pabx = true;
+                        if(dados === 'X') dicionarioAgrupamento[chaveGrupo].dados = true;
+                    }
+                }
+
+                dadosGlobaisBase = Object.values(dicionarioAgrupamento).sort((a, b) => {
+                    return a.fabricante.localeCompare(b.fabricante, 'pt', { sensitivity: 'base' });
+                });
+                
+                registrarLog(`Agrupamento concluído. Registros gerados: ${dadosGlobaisBase.length}`);
+
+                document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
+                document.getElementById('txtModTotal').innerText = totalModelosContados;
+
+                fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
+                document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
+                
+                const containerFab = document.getElementById('containerFiltroFabricante');
+                containerFab.innerHTML = '';
+                fabricantesDistintos.forEach(fab => {
+                    containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
+                });
+
+                renderizarTabelaOperacional(dadosGlobaisBase);
+                registrarLog("✅ Console operacional carregado com sucesso.");
+
+            } catch (err) {
+                registrarLog(`❌ Erro interno de processamento: ${err.message}`);
+            }
         }
 
         function renderizarTabelaOperacional(listaFiltro) {
@@ -315,8 +352,8 @@
             } catch(e) {}
         }
 
-        sincronizarPortal();
-        setTimeout(buscarUltimaAtualizacao, 1500);
+        setTimeout(sincronizarPortal, 1000);
+        setTimeout(buscarUltimaAtualizacao, 2500);
     </script>
 </body>
 </html>
