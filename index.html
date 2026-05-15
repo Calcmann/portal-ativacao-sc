@@ -15,7 +15,7 @@
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-        body { background-color: var(--bg-pagina); color: var(--texto-principal); padding: 16px; }
+        body { background-color: var(--bg-pagina); color: var(--texto-principal); padding: 16px; padding-bottom: 60px; }
         
         header { margin-bottom: 24px; text-align: center; border-bottom: 4px solid var(--claro-vermelho); background-color: var(--bg-card); padding: 24px 16px; border-radius: 0 0 12px 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         header h1 { font-size: 1.4rem; font-weight: 800; text-transform: uppercase; }
@@ -35,125 +35,167 @@
         
         .badges-servicos { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
         .service-badge { font-size: 0.65rem; background-color: #f3f4f6; color: #374151; padding: 2px 8px; border-radius: 4px; font-weight: 600; border: 1px solid var(--borda); }
-        
-        .memoria-info { font-size: 0.75rem; color: var(--texto-mutado); margin-bottom: 12px; }
+        .modelos-tag-lista { font-size: 0.8rem; color: var(--texto-principal); background-color: #f8fafc; padding: 6px; border-radius: 6px; border: 1px solid var(--borda); margin-top: 4px; line-height: 1.4; }
 
-        .secao-links { margin-bottom: 12px; }
+        .secao-links { margin-bottom: 12px; margin-top: 12px; }
         .secao-links h3 { font-size: 0.75rem; color: var(--texto-mutado); margin-bottom: 6px; text-transform: uppercase; }
         
         .link-suporte { display: flex; align-items: center; justify-content: space-between; color: var(--texto-principal); text-decoration: none; padding: 10px 12px; background-color: var(--bg-pagina); border-radius: 8px; font-size: 0.85rem; font-weight: 500; transition: all 0.15s; }
         .link-suporte:hover { background-color: var(--claro-vermelho); color: #ffffff; }
         
         .status-carregando { text-align: center; padding: 40px; color: var(--texto-mutado); }
+
+        .marcador-versao {
+            position: fixed;
+            bottom: 16px;
+            right: 16px;
+            background-color: var(--texto-principal);
+            color: #ffffff;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 6px 12px;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            z-index: 9999;
+            letter-spacing: 0.5px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
     </style>
 </head>
 <body>
 
     <header>
-        <!-- Nome unificado com o painel ADM -->
         <h1>Ativação - <span>SC</span></h1>
         <p>Homologações Ativas de Engenharia • Visão de Campo Regional</p>
     </header>
 
     <div class="busca-container">
-        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Huawei)...">
+        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Cisco, 1841)...">
     </div>
 
     <main class="grid-equipamentos" id="listaEquipamentos">
-        <div class="status-carregando">Processando matriz de engenharia...</div>
+        <div class="status-carregando">Sincronizando matriz de engenharia com os smartphones...</div>
     </main>
 
+    <div class="marcador-versao" id="txtVersao">V2.4</div>
+
     <script>
-        let dadosOriginais = [];
+        let dadosAgrupadosCampo = [];
+
+        const GITHUB_USER = "seu-usuario-aqui";
+        const GITHUB_REPO = "portal-ativacao-sc";
 
         async function carregarPlanilha() {
             try {
-                // Consome o CSV bruto enviado via painel admin
                 const resposta = await fetch('engenharia.csv?t=' + new Date().getTime());
                 const textoCSV = await resposta.text();
-                processarCSV(textoCSV);
+                processarCSVCampoNativo(textoCSV);
             } catch (erro) {
-                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Arquivo 'engenharia.csv' não encontrado. Realize o primeiro upload no painel ADM.</div>`;
+                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Matriz 'engenharia.csv' não sincronizada na nuvem. Execute a gravação manual no painel ADM.</div>`;
             }
         }
 
-        function processarCSV(texto) {
-            const linhas = texto.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            const separador = linhas[0].includes(';') ? ';' : ',';
-            
-            let indiceCabecalho = 0;
-            for(let i=0; i<linhas.length; i++) {
-                if(linhas[i].toLowerCase().includes('fabricante') && linhas[i].toLowerCase().includes('modelo')) {
-                    indiceCabecalho = i;
+        // MOTOR V2.4: Agrupamento simétrico por posição de colunas físicas
+        function processarCSVCampoNativo(texto) {
+            const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if(linhasBrutas.length <= 1) return;
+
+            const primeiraLinha = linhasBrutas[0];
+            const separador = primeiraLinha.includes(';') ? ';' : ',';
+
+            let indiceTabela = 0;
+            for(let i = 0; i < linhasBrutas.length; i++) {
+                const colTeste = linhasBrutas[i].split(separador);
+                if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                    indiceTabela = i;
                     break;
                 }
             }
 
-            const cabecalhos = linhas[indiceCabecalho].split(separador).map(c => c.trim());
+            const dicionarioCampo = {};
 
-            dadosOriginais = linhas.slice(indiceCabecalho + 1).map(linha => {
-                const colunas = linha.split(separador).map(v => v.trim());
-                let item = {};
-                cabecalhos.forEach((cab, idx) => {
-                    item[cab] = colunas[idx] || '';
-                });
-                return item;
-            });
+            for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
+                const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
+                
+                if(colunas.length < 6) continue;
 
-            dadosOriginais = dadosOriginais.filter(i => i['Modelo'] && i['Modelo'] !== '-');
-            renderizarCards(dadosOriginais);
+                const fabricante = colunas[0].trim() || 'Claro S.A.';
+                const vipline = colunas[1].trim();
+                const vipsip = colunas[2].trim();
+                const pabx = colunas[3].trim();
+                const dados = colunas[4].trim();
+                const modelo = colunas[5].trim();
+                const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado';
+
+                if(modelo && modelo !== '-' && firmware && firmware !== '-' && firmware !== '') {
+                    const chaveGrupo = `${fabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+
+                    if(!dicionarioCampo[chaveGrupo]) {
+                        dicionarioCampo[chaveGrupo] = {
+                            fabricante: fabricante,
+                            firmware: firmware,
+                            modelos: [],
+                            servicos: { vipline: false, vipsip: false, pabx: false, dados: false }
+                        };
+                    }
+                    
+                    if(!dicionarioCampo[chaveGrupo].modelos.includes(modelo)){
+                        dicionarioCampo[chaveGrupo].modelos.push(modelo);
+                    }
+
+                    // Consolida as tags de serviço ativas para qualquer modelo do grupo
+                    if(vipline === 'X') dicionarioCampo[chaveGrupo].servicos.vipline = true;
+                    if(vipsip === 'X') dicionarioCampo[chaveGrupo].servicos.vipsip = true;
+                    if(pabx === 'X') dicionarioCampo[chaveGrupo].servicos.pabx = true;
+                    if(dados === 'X') dicionarioCampo[chaveGrupo].servicos.dados = true;
+                }
+            }
+
+            dadosAgrupadosCampo = Object.values(dicionarioCampo);
+            renderizarCardsCampoAgrupados(dadosAgrupadosCampo);
         }
 
-        function renderizarCards(lista) {
+        function renderizarCardsCampoAgrupados(lista) {
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = '';
 
-            lista.forEach(item => {
-                const fabPasta = item['Fabricante'].toLowerCase().replace(/ /g, '_');
-                const modNome = item['Modelo'].replace(/ /g, '_').replace(/\//g, '-');
-                const firmwareNome = item['Versão de'] || 'Não especificado';
+            lista.forEach(grupo => {
+                const fabPasta = grupo.fabricante.toLowerCase().replace(/ /g, '_');
+                const modelosTexto = grupo.modelos.join(" / ");
 
-                // Mapeamento dinâmico dos canais de atendimento (Campos 1 a 5)
+                // Monta as tags consolidadas do grupo de ativação
                 let servicosHTML = '';
-                if(item['VIPLINE'] === 'X') servicosHTML += `<span class="service-badge">VIPLINE</span>`;
-                if(item['VIPSIP'] === 'X') servicosHTML += `<span class="service-badge">VIPSIP</span>`;
-                if(item['PABX\nVirtual\n(Broadsoft\n)'] === 'X' || item['PABX Virtual'] === 'X') servicosHTML += `<span class="service-badge">PABX Virtual</span>`;
-                if(item['Dados'] === 'X') servicosHTML += `<span class="service-badge">Dados</span>`;
+                if(grupo.servicos.vipline) servicosHTML += `<span class="service-badge">VIPLINE</span>`;
+                if(grupo.servicos.vipsip) servicosHTML += `<span class="service-badge">VIPSIP</span>`;
+                if(grupo.servicos.pabx) servicosHTML += `<span class="service-badge">PABX Virtual</span>`;
+                if(grupo.servicos.dados) servicosHTML += `<span class="service-badge">Dados</span>`;
 
                 const card = document.createElement('div');
                 card.className = 'card-equipamento';
                 
-                // Rota lógica padrão para o download do firmware
-                let linkFirmware = `./firmwares/${fabPasta}/${firmwareNome}`;
+                let linkFirmware = `./firmwares/${fabPasta}/${grupo.firmware}`;
 
                 card.innerHTML = `
                     <h2>
-                        <span class="fabricante-label">${item['Fabricante']}</span>
-                        ${item['Modelo']}
-                        <div class="badges-servicos">${servicosHTML}</div>
+                        <span class="fabricante-label">${grupo.fabricante}</span>
+                        <div class="modelos-tag-lista">📟 Compatibilidade: <strong>${modelosTexto}</strong></div>
+                        <div class="badges-servicos" style="margin-top:8px;">${servicosHTML}</div>
                     </h2>
                     
-                    <div class="memoria-info">
-                        💾 FLASH: ${item['FLASH (MB'] || '-'} MB | 🧠 DRAM: ${item['DRAM (MB'] || '-'} MB
-                    </div>
-
-                    <div class="secao-links">
-                        <h3>📄 Documentação Base</h3>
-                        <a href="./docs/${fabPasta}/${modNome}_manual.pdf" target="_blank" class="link-suporte">Abrir Manual Técnico <span>➔</span></a>
-                    </div>
-
-                    <div class="secao-links">
-                        <h3>💾 Software Homologado</h3>
-                        <a href="${linkFirmware}" class="link-suporte">
-                            ${firmwareNome} <span>📥</span>
-                        </a>
+                    <div class="secul-links">
+                        <div class="secao-links">
+                            <h3>💾 Software Homologado</h3>
+                            <a href="${linkFirmware}" class="link-suporte">
+                                ${grupo.firmware} <span>📥</span>
+                            </a>
+                        </div>
                     </div>
                 `;
                 container.appendChild(card);
             });
         }
 
-        // Sistema de busca unificado para campo
+        // Filtro de busca inteligente integrado que pesquisa por fabricante, firmware, serviços ou por qualquer modelo contido na lista de compatibilidade do card
         document.getElementById('inputBusca').addEventListener('input', function(e) {
             const termo = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('.card-equipamento');
@@ -162,7 +204,26 @@
             });
         });
 
+        async function buscarUltimaAtualizacao() {
+            try {
+                const urlCommits = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
+                const res = await fetch(urlCommits);
+                if(res.ok) {
+                    const dados = await res.json();
+                    if(dados && dados.length > 0) {
+                        const dataCommit = new Date(dados[0].commit.committer.date);
+                        const dia = String(dataCommit.getDate()).padStart(2, '0');
+                        const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
+                        const horas = String(dataCommit.getHours()).padStart(2, '0');
+                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
+                    }
+                }
+            } catch(e) {}
+        }
+
         carregarPlanilha();
+        setTimeout(buscarUltimaAtualizacao, 1500);
     </script>
 </body>
 </html>
