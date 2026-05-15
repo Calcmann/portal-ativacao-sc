@@ -25,10 +25,9 @@
         header h1 span { color: var(--claro-vermelho); }
 
         .auth-box { display: flex; align-items: center; gap: 8px; }
-        .token-input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.85rem; outline: none; width: 280px; }
+        .token-input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.85rem; outline: none; }
         .status-dot { width: 10px; height: 10px; background-color: #9ca3af; border-radius: 50%; }
         .status-dot.active { background-color: var(--verde-sucesso); }
-        .status-dot.invalid { background-color: var(--claro-vermelho); }
 
         .container { max-width: 1000px; margin: 0 auto; padding-bottom: 60px; }
 
@@ -77,7 +76,7 @@
     <header>
         <h1>Ativação - <span>SC</span></h1>
         <div class="auth-box">
-            <input type="password" id="inputToken" class="token-input" placeholder="Cole o Token ghp_ ou github_pat_">
+            <input type="password" id="inputToken" class="token-input" placeholder="Chave de Acesso GitHub (Token)">
             <div id="statusConexao" class="status-dot" title="Chave não informada"></div>
         </div>
     </header>
@@ -112,8 +111,8 @@
 
     </main>
 
-    <!-- Versão do Painel Atualizada para V3.5 -->
-    <div class="marcador-versao" id="txtVersao">V3.5</div>
+    <!-- Versão do Painel Atualizada para V3.1 -->
+    <div class="marcador-versao" id="txtVersao">V3.1</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -124,26 +123,10 @@
         const GITHUB_USER = "calcmann";
         const GITHUB_REPO = "portal-ativacao-sc";
 
-        // Função utilitária isolada para validar a estrutura do token string crua
-        function verificarAssinaturaToken() {
-            const token = tokenInput.value.trim();
-            if (token === "") return "vazio";
-
-            const regexClassic = /^ghp_[a-zA-Z0-9]{36}$/;
-            const regexFineGrained = /^github_pat_[a-zA-Z0-9_]{82}$/;
-
-            if (regexClassic.test(token) || regexFineGrained.test(token)) return "valido";
-            return "invalido";
-        }
-
         tokenInput.addEventListener('input', () => {
-            const resultado = verificarAssinaturaToken();
-            if (resultado === "valido") {
+            if(tokenInput.value.trim().length > 10) {
                 statusConexao.className = 'status-dot active';
-                statusConexao.title = "Assinatura de Token Válida";
-            } else if (resultado === "invalido") {
-                statusConexao.className = 'status-dot invalid';
-                statusConexao.title = "Formato Inválido!";
+                statusConexao.title = "Chave Admin Pronta";
             } else {
                 statusConexao.className = 'status-dot';
                 statusConexao.title = "Chave não informada";
@@ -160,13 +143,13 @@
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files);
+                tratarSelecaoArquivo(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files);
+                tratarSelecaoArquivo(fileInput.files[0]);
             }
         });
 
@@ -177,6 +160,8 @@
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
+            
+            // 🌟 ATUALIZAÇÃO CRÍTICA V3.1: Usa .onloadend para garantir o carregamento completo do CSV do Excel na memória
             leitorTexto.onloadend = function(evt) {
                 if (evt.target.readyState !== FileReader.DONE) return;
 
@@ -187,13 +172,13 @@
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
                     if(!linhasBrutas || linhasBrutas.length <= 1) return;
 
-                    const primeiraLinha = linhasBrutas || '';
+                    const primeiraLinha = linhasBrutas[0] || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
 
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
                             break;
                         }
@@ -206,13 +191,13 @@
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                         if(!colunas || colunas.length < 6) continue;
 
-                        let fabricanteBruto = colunas;
-                        const vipline = colunas;
-                        const vipsip = colunas;
-                        const pabx = colunas;
-                        const dados = colunas;
-                        const modelo = colunas;
-                        const firmware = colunas ? colunas.trim() : ''; 
+                        let fabricanteBruto = colunas[0];
+                        const vipline = colunas[1];
+                        const vipsip = colunas[2];
+                        const pabx = colunas[3];
+                        const dados = colunas[4];
+                        const modelo = colunas[5];
+                        const firmware = colunas[8] ? colunas[8].trim() : ''; 
 
                         if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
                             ultimoFabricanteValido = fabricanteBruto;
@@ -255,10 +240,8 @@
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
             const uploadStatus = document.getElementById('uploadStatus');
-            const tokenStatus = verificarAssinaturaToken();
 
-            // 🌟 CORREÇÃO V3.5: Valida usando a função síncrona sem acessar classes CSS de tela
-            if(!token || tokenStatus === "invalido") {
+            if(!token) {
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
@@ -285,7 +268,7 @@
             try {
                 const resUpload = await fetch(urlAPI, {
                     method: "PUT",
-                    headers: { "Authorization": `token ${token}`, "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
+                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
                     body: JSON.stringify(payload)
                 });
 
@@ -372,7 +355,6 @@
             const token = tokenInput.value.trim();
             const statusLabel = document.getElementById(`status-card-${id}`);
             const seletorTipo = document.querySelector(`input[name="tipo-${id}"]:checked`).value;
-            const tokenStatus = verificarAssinaturaToken();
 
             if (seletorTipo === 'local') {
                 const inputArquivo = document.getElementById(`file-upload-${id}`);
@@ -386,11 +368,11 @@
                 statusLabel.innerText = "⏳ Carregando binário...";
 
                 const reader = new FileReader();
-                reader.readAsDataURL(inputArquivo.files);
+                reader.readAsDataURL(inputArquivo.files[0]);
                 reader.onloadend = function() {
                     if (reader.readyState !== FileReader.DONE) return;
                     const base64Puro = reader.result.substring(reader.result.indexOf(',') + 1);
-                    dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, base64Puro, token, statusLabel, tokenStatus);
+                    dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, base64Puro, token, statusLabel);
                 };
             } else {
                 const inputUrl = document.getElementById(`url-link-${id}`);
@@ -400,15 +382,14 @@
                     return;
                 }
                 const urlBase64 = btoa(unescape(encodeURIComponent(inputUrl.value.trim())));
-                dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, urlBase64, token, statusLabel, tokenStatus);
+                dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, urlBase64, token, statusLabel);
             }
         }
 
-        async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel, tokenStatus) {
-            // 🌟 CORREÇÃO V3.5: Substituída a leitura de classe de tela pela função lógica direta
-            if (!token || tokenStatus === "invalido") {
+        async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel) {
+            if (!token) {
                 statusLabel.className = "status-upload-card erro";
-                statusLabel.innerText = "🔒 Chave inválida! Use a interface manual do GitHub.";
+                statusLabel.innerText = "🔒 Chave vazia! Use a interface manual do GitHub.";
                 
                 const containerInput = document.getElementById(`container-input-${id}`);
                 containerInput.innerHTML = `
@@ -434,7 +415,7 @@
                 const respostaAPI = await fetch(urlDestinoAPI, {
                     method: "PUT",
                     headers: {
-                        "Authorization": `token ${token}`,
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(pacotePayload)
@@ -459,7 +440,7 @@
                 }
             } catch (errRede) {
                 statusLabel.className = "status-upload-card erro";
-                statusLabel.innerText = "❌ Falha crítica de transmissão na rede!";
+                statusLabel.innerText = "❌ Bloqueio de rede detectado!";
             }
         }
 
