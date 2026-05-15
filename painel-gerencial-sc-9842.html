@@ -4,8 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Administrativo - Ativação - SC</title>
-    <!-- Processador nativo de planilhas CSV no navegador -->
-    <script src="https://cloudflare.com"></script>
     <style>
         :root {
             --claro-vermelho: #ee1d23;
@@ -38,7 +36,6 @@
         .btn-claro { background-color: var(--claro-vermelho); color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 25px; cursor: pointer; font-size: 0.95rem; margin-top: 12px; display: inline-block; text-decoration: none; }
         .btn-claro:hover { background-color: var(--claro-vermelho-hover); }
         
-        /* NOVO: Caixa de Log estilo Terminal */
         .terminal-log { width: 100%; max-width: 600px; background-color: #1e1e1e; color: #f5c400; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; padding: 12px; border-radius: 6px; margin: 16px auto 0 auto; text-align: left; max-height: 150px; overflow-y: auto; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); display: block; line-height: 1.4; }
 
         .dashboard-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; display: none; }
@@ -97,14 +94,13 @@
         <div class="upload-secao" id="dropzone">
             <p id="uploadStatus">Arraste e solte o arquivo <strong>engenharia.csv</strong> enviado pela Engenharia de Rede aqui</p>
             <input type="file" id="fileInput" accept=".csv" style="display: none;">
-            <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Archivo</button>
+            <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
             
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <!-- NOVO: Caixa visual para rastreamento de erros -->
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Aguardando arquivo...</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Módulo local carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -125,9 +121,15 @@
 
     </main>
 
-    <!-- Versão Atualizada para V1.4 -->
-    <div class="marcador-versao" id="txtVersao">V1.4</div>
+    <!-- Versão Atualizada para V1.5 -->
+    <div class="marcador-versao" id="txtVersao">V1.5</div>
 
+    <!-- 🌟 MINI-MÓDULO EMBUTIDO PAPAPARSE PARA EVITAR BLOQUEIOS DE REDE DA CLARO -->
+    <script>
+        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e[0])return{data:[],errors:[]};var f=e[0].split(e[0].includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[0].includes(";")?";":",");if(!(d&&1===m.length&&""===m[0])){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
+    </script>
+
+    <!-- MOTOR DE AUTOMAÇÃO PRINCIPAL DO SITE -->
     <script>
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
@@ -135,15 +137,14 @@
         const statusConexao = document.getElementById('statusConexao');
         const caixaLog = document.getElementById('caixaLog');
 
-        // AJUSTE OPERACIONAL OBRIGATÓRIO
+        // AJUSTE OPERACIONAL OBRIGATÓRIO (Preencha com seus dados do GitHub)
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
-        // Função interna para escrever mensagens no terminal da tela
         function registrarLog(mensagem) {
             const timestamp = new Date().toLocaleTimeString();
             caixaLog.innerHTML += `<br>> [${timestamp}] ${mensagem}`;
-            caixaLog.scrollTop = caixaLog.scrollHeight; // Auto-scroll para a última linha
+            caixaLog.scrollTop = caixaLog.scrollHeight;
         }
 
         tokenInput.addEventListener('input', () => {
@@ -166,61 +167,61 @@
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            registrarLog("Arquivo solto via Drag & Drop detectado.");
+            registrarLog("Arquivo solto via Drag & Drop.");
             const dt = e.dataTransfer;
             if(dt && dt.files && dt.files.length > 0) {
-                extrairEProcessar(dt.files);
-            } else {
-                registrarLog("❌ Falha crítica: Nenhum arquivo encontrado no evento Drop.");
+                extrairEProcessar(dt.files[0]); // Pega estritamente o arquivo bruto do índice 0
             }
         });
 
         fileInput.addEventListener('change', (e) => {
-            registrarLog("Arquivo selecionado via botão de clique detectado.");
+            registrarLog("Arquivo selecionado via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                extrairEProcessar(fileInput.files);
-            } else {
-                registrarLog("❌ Falha crítica: Nenhum arquivo encontrado no evento Change.");
+                extrairEProcessar(fileInput.files[0]); // Pega estritamente o arquivo bruto do índice 0
             }
         });
 
-        // Garante o desmembramento correto do FileList para File antes de enviar para os motores leitores
-        function extrairEProcessar(listaArquivos) {
+        function extrairEProcessar(arquivoPuro) {
             try {
-                const arquivoPuro = listaArquivos[0];
-                registrarLog(`Arquivo isolado com sucesso: ${arquivoPuro.name} (${arquivoPuro.size} bytes)`);
+                registrarLog(`Isolado com sucesso: ${arquivoPuro.name} (${arquivoPuro.size} bytes)`);
                 tratarSelecaoArquivo(arquivoPuro);
             } catch(err) {
-                registrarLog(`❌ Erro no desmembramento do FileList: ${err.message}`);
+                registrarLog(`❌ Erro no isolamento: ${err.message}`);
             }
         }
 
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Abortado: O objeto final do arquivo não possui a propriedade .name.");
+                registrarLog("❌ Abortado: Objeto sem propriedade .name.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Iniciando leitura das linhas via PapaParse...");
+            registrarLog("Executando motor de leitura de tabelas embutido (V1.5)...");
             
-            Papa.parse(arquivoObjeto, {
-                header: true,
-                skipEmptyLines: true,
-                transformHeader: function(header) {
-                    return header.replace(/[\r\n\t]+/g, " ").trim();
-                },
-                complete: function(results) {
-                    registrarLog(`PapaParse concluído. ${results.data.length} linhas encontradas.`);
-                    if(results.errors && results.errors.length > 0) {
-                        registrarLog(`⚠️ Alerta: O PapaParse encontrou ${results.errors.length} anomalias de formatação.`);
-                    }
-                    gerarDashboardAuditoria(results.data);
-                },
-                error: function(err) {
-                    registrarLog(`❌ Erro fatal dentro do PapaParse: ${err}`);
+            // FileReader lê o texto bruto para o PapaParse embutido processar localmente
+            const leitorTexto = new FileReader();
+            leitorTexto.readAsText(arquivoObjeto, "UTF-8");
+            leitorTexto.onload = function(evt) {
+                try {
+                    const textoBruto = evt.target.result;
+                    registrarLog("Texto bruto do arquivo lido. Decodificando colunas...");
+                    
+                    const resultado = Papa.parse(textoBruto, {
+                        header: true,
+                        skipEmptyLines: true,
+                        transformHeader: function(header) {
+                            return header.replace(/[\r\n\t]+/g, " ").trim();
+                        }
+                    });
+
+                    registrarLog(`Leitura local concluída. ${resultado.data.length} linhas processadas.`);
+                    gerarDashboardAuditoria(resultado.data);
+                    
+                } catch(errorInterno) {
+                    registrarLog(`❌ Erro interno de processamento de colunas: ${errorInterno.message}`);
                 }
-            });
+            };
 
             salvarCSVNoGithub(arquivoObjeto);
         }
@@ -232,43 +233,38 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Cancelado envio para nuvem: Token ausente.");
+                registrarLog("⚠️ Transmissão para nuvem ignorada: Token em branco.");
                 uploadStatus.innerHTML = `⚠️ Planilha processada na tela, mas <strong>NÃO foi salva no GitHub</strong> porque a Chave de Acesso (Token) está vazia!`;
                 return;
             }
 
-            registrarLog("Iniciando motor de upload para o GitHub...");
+            registrarLog("Iniciando conversão binária para upload...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '15%';
             
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-            registrarLog(`URL de Destino configurada: ://github.com`);
-            
             const reader = new FileReader();
             
             reader.readAsDataURL(arquivo);
             reader.onload = async () => {
-                registrarLog("Conversão binária para string Base64 concluída.");
-                const conteudoBase64 = reader.result.split(',')[1];
-                
-                registrarLog("Conectando à API do GitHub para checar integridade e histórico (SHA)...");
+                const conteudoBase64 = reader.result.split(',')[1]; // Garante apenas o binário Base64 puro
+                registrarLog("Conversão Base64 concluída. Comunicando com a API do GitHub...");
                 progressBar.style.width = '50%';
 
                 let shaExistente = null;
                 try {
                     const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
-                    registrarLog(`Status da checagem de SHA histórico: ${resCheck.status}`);
                     if(resCheck.ok) {
                         const dadosArquivo = await resCheck.json();
                         shaExistente = dadosArquivo.sha;
-                        registrarLog(`SHA localizado na nuvem: ${shaExistente}`);
+                        registrarLog(`Histórico localizado na nuvem (SHA: ${shaExistente.substring(0,7)}). Overwrite preparado.`);
                     }
                 } catch(e) {
-                    registrarLog(`Aviso: Histórico limpo (primeiro envio da planilha).`);
+                    registrarLog(`Histórico limpo. Criando novo arquivo no repositório.`);
                 }
 
                 progressBar.style.width = '75%';
-                registrarLog("Transmitindo pacote de dados e forçando overwrite no GitHub...");
+                registrarLog("Gravando alterações e forçando commit na branch main...");
 
                 const payload = {
                     message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
@@ -287,35 +283,33 @@
                         body: JSON.stringify(payload)
                     });
 
-                    registrarLog(`Resposta do upload do GitHub: Status ${resUpload.status}`);
+                    registrarLog(`Retorno do GitHub: Status ${resUpload.status}`);
 
                     if(resUpload.ok) {
                         progressBar.style.width = '100%';
                         progressBar.style.background = '#16a34a';
                         uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                        registrarLog("✅ Sincronização de planilha concluída com sucesso na nuvem!");
+                        registrarLog("✅ Sincronização concluída com sucesso no repositório!");
                         setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                     } else {
                         const respostaErro = await resUpload.text();
                         registrarLog(`❌ Erro no commit: ${respostaErro}`);
                         progressBar.style.width = '100%';
-                        uploadStatus.innerHTML = `❌ Erro na API do GitHub. Veja a caixa de log abaixo.`;
+                        uploadStatus.innerHTML = `❌ Erro no upload. Verifique as configurações.`;
                     }
                 } catch(errFetch) {
-                    registrarLog(`❌ Falha na conexão de rede com a API: ${errFetch.message}`);
+                    registrarLog(`❌ Falha de rede: ${errFetch.message}`);
                 }
             };
         }
 
         function gerarDashboardAuditoria(dados) {
-            registrarLog("Iniciando varredura e higienização das linhas de hardware...");
+            registrarLog("Montando filtros e injetando cards de hardware na tela...");
             const itensValidos = dados.filter(linha => {
                 const chaves = Object.keys(linha);
                 const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
                 return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '-';
             });
-            
-            registrarLog(`Filtro concluído. ${itensValidos.length} equipamentos homologados identificados.`);
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
@@ -356,7 +350,7 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog("Cards gerenciais injetados na tela com sucesso.");
+            registrarLog(`Cards injetados com sucesso. Painel operacional.`);
         }
 
         function alternarInput(id, tipo) {
@@ -367,6 +361,12 @@
                 container.innerHTML = `<input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">`;
             }
         }
+
+        document.addEventListener("click", function(e) {
+            if(e.target && e.target.className === 'btn-salvar') {
+                // Mantém o comportamento visual de limpeza de cards simulado
+            }
+        });
 
         function salvarAtualizacao(id) {
             const card = document.getElementById(`card-${id}`);
@@ -385,13 +385,12 @@
                 if(res.ok) {
                     const dados = await res.json();
                     if(dados && dados.length > 0) {
-                        const dataCommit = new Date(dados[0].commit.committer.date);
+                        const dataCommit = new Date(dados.commit.committer.date);
                         const dia = String(dataCommit.getDate()).padStart(2, '0');
                         const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
                         const horas = String(dataCommit.getHours()).padStart(2, '0');
-                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
-                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
-                        registrarLog("Relógio de sincronização atualizado.");
+                        const minutes = String(dataCommit.getMinutes()).padStart(2, '0');
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutes}`;
                     }
                 }
             } catch(e) {}
