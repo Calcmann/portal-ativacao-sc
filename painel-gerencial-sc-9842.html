@@ -38,6 +38,9 @@
         .btn-claro { background-color: var(--claro-vermelho); color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 25px; cursor: pointer; font-size: 0.95rem; margin-top: 12px; display: inline-block; text-decoration: none; }
         .btn-claro:hover { background-color: var(--claro-vermelho-hover); }
         
+        /* NOVO: Caixa de Log estilo Terminal */
+        .terminal-log { width: 100%; max-width: 600px; background-color: #1e1e1e; color: #f5c400; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; padding: 12px; border-radius: 6px; margin: 16px auto 0 auto; text-align: left; max-height: 150px; overflow-y: auto; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); display: block; line-height: 1.4; }
+
         .dashboard-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; display: none; }
         .mini-card { background-color: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--borda); text-align: center; }
         .mini-card h4 { font-size: 0.8rem; color: var(--texto-mutado); text-transform: uppercase; }
@@ -94,11 +97,14 @@
         <div class="upload-secao" id="dropzone">
             <p id="uploadStatus">Arraste e solte o arquivo <strong>engenharia.csv</strong> enviado pela Engenharia de Rede aqui</p>
             <input type="file" id="fileInput" accept=".csv" style="display: none;">
-            <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
+            <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Archivo</button>
             
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
+
+            <!-- NOVO: Caixa visual para rastreamento de erros -->
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Aguardando arquivo...</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -119,22 +125,32 @@
 
     </main>
 
-    <!-- Marcador de Versão Incrementado para V1.3 -->
-    <div class="marcador-versao" id="txtVersao">V1.3</div>
+    <!-- Versão Atualizada para V1.4 -->
+    <div class="marcador-versao" id="txtVersao">V1.4</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const tokenInput = document.getElementById('inputToken');
         const statusConexao = document.getElementById('statusConexao');
+        const caixaLog = document.getElementById('caixaLog');
 
+        // AJUSTE OPERACIONAL OBRIGATÓRIO
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
+
+        // Função interna para escrever mensagens no terminal da tela
+        function registrarLog(mensagem) {
+            const timestamp = new Date().toLocaleTimeString();
+            caixaLog.innerHTML += `<br>> [${timestamp}] ${mensagem}`;
+            caixaLog.scrollTop = caixaLog.scrollHeight; // Auto-scroll para a última linha
+        }
 
         tokenInput.addEventListener('input', () => {
             if(tokenInput.value.trim().length > 10) {
                 statusConexao.className = 'status-dot active';
                 statusConexao.title = "Chave Admin Pronta";
+                registrarLog("Chave de acesso detectada.");
             } else {
                 statusConexao.className = 'status-dot';
                 statusConexao.title = "Chave não informada";
@@ -150,27 +166,44 @@
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
+            registrarLog("Arquivo solto via Drag & Drop detectado.");
             const dt = e.dataTransfer;
-            if(dt.files && dt.files.length > 0) {
-                tratarSelecaoArquivo(dt.files[0]); // Força o isolamento direto na escuta do evento
+            if(dt && dt.files && dt.files.length > 0) {
+                extrairEProcessar(dt.files);
+            } else {
+                registrarLog("❌ Falha crítica: Nenhum arquivo encontrado no evento Drop.");
             }
         });
 
         fileInput.addEventListener('change', (e) => {
+            registrarLog("Arquivo selecionado via botão de clique detectado.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]); // Força o isolamento direto na escuta do evento
+                extrairEProcessar(fileInput.files);
+            } else {
+                registrarLog("❌ Falha crítica: Nenhum arquivo encontrado no evento Change.");
             }
         });
 
+        // Garante o desmembramento correto do FileList para File antes de enviar para os motores leitores
+        function extrairEProcessar(listaArquivos) {
+            try {
+                const arquivoPuro = listaArquivos[0];
+                registrarLog(`Arquivo isolado com sucesso: ${arquivoPuro.name} (${arquivoPuro.size} bytes)`);
+                tratarSelecaoArquivo(arquivoPuro);
+            } catch(err) {
+                registrarLog(`❌ Erro no desmembramento do FileList: ${err.message}`);
+            }
+        }
+
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                document.getElementById('uploadStatus').innerText = "⚠️ Falha: O navegador não isolou o arquivo.";
+                registrarLog("❌ Abortado: O objeto final do arquivo não possui a propriedade .name.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
+            registrarLog("Iniciando leitura das linhas via PapaParse...");
             
-            // 🌟 ATUALIZAÇÃO V1.3: Normaliza os cabeçalhos limpando quebras de linha ocultas do Excel (\n, \r)
             Papa.parse(arquivoObjeto, {
                 header: true,
                 skipEmptyLines: true,
@@ -178,7 +211,14 @@
                     return header.replace(/[\r\n\t]+/g, " ").trim();
                 },
                 complete: function(results) {
+                    registrarLog(`PapaParse concluído. ${results.data.length} linhas encontradas.`);
+                    if(results.errors && results.errors.length > 0) {
+                        registrarLog(`⚠️ Alerta: O PapaParse encontrou ${results.errors.length} anomalias de formatação.`);
+                    }
                     gerarDashboardAuditoria(results.data);
+                },
+                error: function(err) {
+                    registrarLog(`❌ Erro fatal dentro do PapaParse: ${err}`);
                 }
             });
 
@@ -192,43 +232,43 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
+                registrarLog("⚠️ Cancelado envio para nuvem: Token ausente.");
                 uploadStatus.innerHTML = `⚠️ Planilha processada na tela, mas <strong>NÃO foi salva no GitHub</strong> porque a Chave de Acesso (Token) está vazia!`;
                 return;
             }
 
+            registrarLog("Iniciando motor de upload para o GitHub...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '15%';
-            progressBar.style.background = '#ee1d23';
-            uploadStatus.innerHTML = `Carregando dados de: <strong>${arquivo.name}</strong>`;
-
+            
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
+            registrarLog(`URL de Destino configurada: ://github.com`);
+            
             const reader = new FileReader();
             
-            reader.onprogress = (e) => {
-                if (e.lengthComputable) {
-                    const porcentagem = Math.round((e.loaded / e.total) * 40) + 15;
-                    progressBar.style.width = `${porcentagem}%`;
-                }
-            };
-
             reader.readAsDataURL(arquivo);
             reader.onload = async () => {
-                const conteudoBase64 = reader.result.split(',')[1]; // Captura cirurgicamente apenas a string Base64 pura
+                registrarLog("Conversão binária para string Base64 concluída.");
+                const conteudoBase64 = reader.result.split(',')[1];
                 
-                uploadStatus.innerHTML = `Buscando histórico do arquivo no repositório...`;
-                progressBar.style.width = '65%';
+                registrarLog("Conectando à API do GitHub para checar integridade e histórico (SHA)...");
+                progressBar.style.width = '50%';
 
                 let shaExistente = null;
                 try {
                     const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
+                    registrarLog(`Status da checagem de SHA histórico: ${resCheck.status}`);
                     if(resCheck.ok) {
                         const dadosArquivo = await resCheck.json();
                         shaExistente = dadosArquivo.sha;
+                        registrarLog(`SHA localizado na nuvem: ${shaExistente}`);
                     }
-                } catch(e) {}
+                } catch(e) {
+                    registrarLog(`Aviso: Histórico limpo (primeiro envio da planilha).`);
+                }
 
-                progressBar.style.width = '85%';
-                uploadStatus.innerHTML = `Fazendo upload e gravando alterações na nuvem...`;
+                progressBar.style.width = '75%';
+                registrarLog("Transmitindo pacote de dados e forçando overwrite no GitHub...");
 
                 const payload = {
                     message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
@@ -237,40 +277,45 @@
                 };
                 if(shaExistente) payload.sha = shaExistente;
 
-                const resUpload = await fetch(urlAPI, {
-                    method: "PUT",
-                    headers: {
-                        "Authorization": `token ${token}`,
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify(payload)
-                });
+                try {
+                    const resUpload = await fetch(urlAPI, {
+                        method: "PUT",
+                        headers: {
+                            "Authorization": `token ${token}`,
+                            "Content-Type": "application/json"
+                        },
+                        body: JSON.stringify(payload)
+                    });
 
-                if(resUpload.ok) {
-                    progressBar.style.width = '100%';
-                    progressBar.style.background = '#16a34a';
-                    uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                    
-                    setTimeout(() => {
-                        progressContainer.style.display = 'none';
-                        buscarUltimaAtualizacao();
-                    }, 4000);
-                } else {
-                    progressBar.style.width = '100%';
-                    progressBar.style.background = '#ee1d23';
-                    uploadStatus.innerHTML = `❌ <strong>Erro na API do GitHub. Verifique os parâmetros configurados nas linhas 116 e 117.</strong>`;
+                    registrarLog(`Resposta do upload do GitHub: Status ${resUpload.status}`);
+
+                    if(resUpload.ok) {
+                        progressBar.style.width = '100%';
+                        progressBar.style.background = '#16a34a';
+                        uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
+                        registrarLog("✅ Sincronização de planilha concluída com sucesso na nuvem!");
+                        setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
+                    } else {
+                        const respostaErro = await resUpload.text();
+                        registrarLog(`❌ Erro no commit: ${respostaErro}`);
+                        progressBar.style.width = '100%';
+                        uploadStatus.innerHTML = `❌ Erro na API do GitHub. Veja a caixa de log abaixo.`;
+                    }
+                } catch(errFetch) {
+                    registrarLog(`❌ Falha na conexão de rede com a API: ${errFetch.message}`);
                 }
             };
         }
 
         function gerarDashboardAuditoria(dados) {
-            // 🌟 ATUALIZAÇÃO V1.3: Varre as chaves de forma tolerante a variações ou espaços extras nas colunas
+            registrarLog("Iniciando varredura e higienização das linhas de hardware...");
             const itensValidos = dados.filter(linha => {
-                // Localiza propriedades de forma tolerante a maiúsculas/minúsculas
                 const chaves = Object.keys(linha);
                 const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
                 return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '-';
             });
+            
+            registrarLog(`Filtro concluído. ${itensValidos.length} equipamentos homologados identificados.`);
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
@@ -299,40 +344,27 @@
                         <h4>${fabricante} ${modelo}</h4>
                         <p>Firmware Requerido pela Engenharia: <strong>${firmwareNome}</strong></p>
                     </div>
-                    
                     <div class="seletor-tipo">
-                        <label>
-                            <input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')">
-                            Arquivo Local (Até 100MB)
-                        </label>
-                        <label>
-                            <input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')">
-                            Link Externo (Acima de 100MB)
-                        </label>
+                        <label><input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')"> Arquivo Local (Até 100MB)</label>
+                        <label><input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')"> Link Externo (Acima de 100MB)</label>
                     </div>
-
                     <div class="input-dinamico-container" id="container-input-${index}">
                         <input type="file" id="file-upload-${index}">
                         <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
                     </div>
-
                     <button class="btn-salvar" onclick="salvarAtualizacao(${index})">Salvar Atualização</button>
                 `;
                 container.appendChild(card);
             });
+            registrarLog("Cards gerenciais injetados na tela com sucesso.");
         }
 
         function alternarInput(id, tipo) {
             const container = document.getElementById(`container-input-${id}`);
             if (tipo === 'local') {
-                container.innerHTML = `
-                    <input type="file" id="file-upload-${id}">
-                    <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
-                `;
+                container.innerHTML = `<input type="file" id="file-upload-${id}"><p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>`;
             } else {
-                container.innerHTML = `
-                    <input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">
-                `;
+                container.innerHTML = `<input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">`;
             }
         }
 
@@ -358,9 +390,8 @@
                         const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
                         const horas = String(dataCommit.getHours()).padStart(2, '0');
                         const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
-                        
                         document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
-                        return;
+                        registrarLog("Relógio de sincronização atualizado.");
                     }
                 }
             } catch(e) {}
