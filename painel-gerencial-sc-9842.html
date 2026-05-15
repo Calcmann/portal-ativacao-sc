@@ -75,10 +75,16 @@
 
     <main class="container">
         
+        <!-- Dropzone da planilha com a Barra de Progresso integrada -->
         <div class="upload-secao" id="dropzone">
             <p id="uploadStatus">Arraste e solte o arquivo <strong>engenharia.csv</strong> enviado pela Engenharia de Rede aqui</p>
             <input type="file" id="fileInput" accept=".csv" style="display: none;">
             <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
+            
+            <!-- Barra de Progresso Fluida -->
+            <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
+                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.3s ease;"></div>
+            </div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -100,179 +106,204 @@
     </main>
 
     <script>
-    const dropzone = document.getElementById('dropzone');
-    const fileInput = document.getElementById('fileInput');
-    const tokenInput = document.getElementById('inputToken');
-    const statusConexao = document.getElementById('statusConexao');
+        const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('fileInput');
+        const tokenInput = document.getElementById('inputToken');
+        const statusConexao = document.getElementById('statusConexao');
 
-    // Altere para as suas informações exatas do GitHub
-    const GITHUB_USER = "seu-usuario-aqui";
-    const GITHUB_REPO = "portal-ativacao-sc";
+        // IMPORTANTE: Insira aqui as informações do seu repositório público
+        const GITHUB_USER = "seu-usuario-aqui";
+        const GITHUB_REPO = "portal-ativacao-sc";
 
-    tokenInput.addEventListener('input', () => {
-        if(tokenInput.value.trim().length > 10) {
-            statusConexao.className = 'status-dot active';
-            statusConexao.title = "Chave Admin Pronta";
-        } else {
-            statusConexao.className = 'status-dot';
-            statusConexao.title = "Chave não informada";
-        }
-    });
-
-    ['dragenter', 'dragover'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }, false);
-    });
-    ['dragleave', 'drop'].forEach(eventName => {
-        dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
-    });
-
-    dropzone.addEventListener('drop', (e) => {
-        const dt = e.dataTransfer;
-        const files = dt.files;
-        if(files.length > 0) tratarSelecaoArquivo(files[0]);
-    });
-
-    fileInput.addEventListener('change', (e) => {
-        if(fileInput.files.length > 0) tratarSelecaoArquivo(fileInput.files[0]);
-    });
-
-    function tratarSelecaoArquivo(arquivo) {
-        document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivo.name}</strong>`;
-        
-        // 1. Ler o arquivo para renderizar na tela
-        Papa.parse(arquivo, {
-            header: true,
-            skipEmptyLines: true,
-            complete: function(results) {
-                gerarDashboardAuditoria(results.data);
+        tokenInput.addEventListener('input', () => {
+            if(tokenInput.value.trim().length > 10) {
+                statusConexao.className = 'status-dot active';
+                statusConexao.title = "Chave Admin Pronta";
+            } else {
+                statusConexao.className = 'status-dot';
+                statusConexao.title = "Chave não informada";
             }
         });
 
-        // 2. Envia o arquivo para se tornar a base oficial 'engenharia.csv' no GitHub
-        salvarCSVNoGithub(arquivo);
-    }
+        ['dragenter', 'dragover'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.add('dragover'); }, false);
+        });
+        ['dragleave', 'drop'].forEach(eventName => {
+            dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
+        });
 
-    // Função que faz o Commit automatizado via API do GitHub
-    async function salvarCSVNoGithub(arquivo) {
-        const token = tokenInput.value.trim();
-        if(!token) {
-            alert("⚠️ Planilha processada na tela, mas NÃO foi salva no GitHub porque a Chave de Acesso (Token) está vazia!");
-            return;
-        }
+        dropzone.addEventListener('drop', (e) => {
+            const dt = e.dataTransfer;
+            const files = dt.files;
+            if(files.length > 0) tratarSelecaoArquivo(files[0]);
+        });
 
-        const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-        
-        // Converte o arquivo para Base64 (padrão exigido pela API do GitHub)
-        const reader = new FileReader();
-        reader.readAsDataURL(arquivo);
-        reader.onload = async () => {
-            const conteudoBase64 = reader.result.split(',')[1];
-            
-            // Busca o SHA do arquivo antigo (necessário para dar Overwrite/Sobrescrever)
-            let shaExistente = null;
-            try {
-                const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
-                if(resCheck.ok) {
-                    const dadosArquivo = await resCheck.json();
-                    shaExistente = dadosArquivo.sha;
+        fileInput.addEventListener('change', (e) => {
+            if(fileInput.files.length > 0) tratarSelecaoArquivo(fileInput.files[0]);
+        });
+
+        function tratarSelecaoArquivo(arquivo) {
+            if (!arquivo || !arquivo.name) return;
+
+            // 1. Processa localmente para renderizar o dashboard e cards
+            Papa.parse(arquivo, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    gerarDashboardAuditoria(results.data);
                 }
-            } catch(e) {}
-
-            // Monta o payload do commit
-            const payload = {
-                message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
-                content: conteudoBase64,
-                branch: "main"
-            };
-            if(shaExistente) payload.sha = shaExistente;
-
-            // Executa o upload/commit
-            const resUpload = await fetch(urlAPI, {
-                method: "PUT",
-                headers: {
-                    "Authorization": `token ${token}`,
-                    "Content-Type": "application/json"
-                },
-                body: JSON.stringify(payload)
             });
 
-            if(resUpload.ok) {
-                document.getElementById('uploadStatus').innerHTML += ` | ✅ <strong>Salvo com sucesso no GitHub!</strong>`;
-            } else {
-                document.getElementById('uploadStatus').innerHTML += ` | ❌ <strong>Erro ao gravar no GitHub. Verifique o Token.</strong>`;
-            }
-        };
-    }
-
-    function gerarDashboardAuditoria(dados) {
-        const itensValidos = dados.filter(linha => linha['Modelo'] && linha['Modelo'] !== '-');
-        
-        document.getElementById('dashboard').style.display = 'grid';
-        document.getElementById('tituloLista').style.display = 'block';
-        document.getElementById('txtTotal').innerText = itensValidos.length;
-        document.getElementById('txtAusentes').innerText = itensValidos.length;
-
-        const container = document.getElementById('containerCards');
-        container.innerHTML = '';
-
-        itensValidos.forEach((item, index) => {
-            const firmwareNome = item['Versão de'] || 'Não especificado';
-            const card = document.createElement('div');
-            card.className = 'card-pendencia';
-            card.id = `card-${index}`;
-
-            card.innerHTML = `
-                <div class="info-equipamento">
-                    <h4>${item['Fabricante']} ${item['Modelo']}</h4>
-                    <p>Firmware Requerido pela Engenharia: <strong>${firmwareNome}</strong></p>
-                </div>
-                
-                <div class="seletor-tipo">
-                    <label>
-                        <input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')">
-                        Arquivo Local (Até 100MB)
-                    </label>
-                    <label>
-                        <input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')">
-                        Link Externo (Acima de 100MB)
-                    </label>
-                </div>
-
-                <div class="input-dinamico-container" id="container-input-${index}">
-                    <input type="file" id="file-upload-${index}">
-                    <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
-                </div>
-
-                <button class="btn-salvar" onclick="salvarAtualizacao(${index})">Salvar Atualização</button>
-            `;
-            container.appendChild(card);
-        });
-    }
-
-    function alternarInput(id, tipo) {
-        const container = document.getElementById(`container-input-${id}`);
-        if (tipo === 'local') {
-            container.innerHTML = `
-                <input type="file" id="file-upload-${id}">
-                <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
-            `;
-        } else {
-            container.innerHTML = `
-                <input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">
-            `;
+            // 2. Dispara o upload e anima a barra de progresso em direção ao GitHub
+            salvarCSVNoGithub(arquivo);
         }
-    }
 
-    function salvarAtualizacao(id) {
-        const card = document.getElementById(`card-${id}`);
-        card.style.opacity = '0.3';
-        setTimeout(() => {
-            card.remove();
-            const contador = document.getElementById('txtAusentes');
-            contador.innerText = Math.max(0, parseInt(contador.innerText) - 1);
-        }, 500);
-    }
-</script>
+        async function salvarCSVNoGithub(arquivo) {
+            const token = tokenInput.value.trim();
+            const progressContainer = document.getElementById('progressContainer');
+            const progressBar = document.getElementById('progressBar');
+            const uploadStatus = document.getElementById('uploadStatus');
 
+            if(!token) {
+                alert("⚠️ Planilha processada na tela, mas NÃO foi salva no GitHub porque a Chave de Acesso (Token) está vazia!");
+                return;
+            }
+
+            progressContainer.style.display = 'block';
+            progressBar.style.width = '0%';
+            progressBar.style.background = '#ee1d23';
+            uploadStatus.innerHTML = `Preparando envio de: <strong>${arquivo.name}</strong>`;
+
+            const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
+            const reader = new FileReader();
+            
+            reader.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const porcentagem = Math.round((e.loaded / e.total) * 50);
+                    progressBar.style.width = `${porcentagem}%`;
+                }
+            };
+
+            reader.readAsDataURL(arquivo);
+            reader.onload = async () => {
+                // Remove o cabeçalho "data:text/csv;base64," para enviar apenas o conteúdo puro em Base64
+                const conteudoBase64 = reader.result.split(',')[1];
+                
+                uploadStatus.innerHTML = `Conectando ao servidor do GitHub...`;
+                progressBar.style.width = '65%';
+
+                let shaExistente = null;
+                try {
+                    const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
+                    if(resCheck.ok) {
+                        const dadosArquivo = await resCheck.json();
+                        shaExistente = dadosArquivo.sha;
+                    }
+                } catch(e) {}
+
+                progressBar.style.width = '80%';
+                uploadStatus.innerHTML = `Gravando alterações na nuvem...`;
+
+                const payload = {
+                    message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
+                    content: conteudoBase64,
+                    branch: "main"
+                };
+                if(shaExistente) payload.sha = shaExistente;
+
+                const resUpload = await fetch(urlAPI, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `token ${token}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if(resUpload.ok) {
+                    progressBar.style.width = '100%';
+                    progressBar.style.background = '#16a34a'; // Verde Claro
+                    uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
+                    
+                    setTimeout(() => {
+                        progressContainer.style.display = 'none';
+                    }, 4000);
+                } else {
+                    progressBar.style.width = '100%';
+                    progressBar.style.background = '#ee1d23';
+                    uploadStatus.innerHTML = `❌ <strong>Erro ao gravar no GitHub. Verifique o Token ou o nome das variáveis GITHUB_USER/REPO.</strong>`;
+                }
+            };
+        }
+
+        function gerarDashboardAuditoria(dados) {
+            const itensValidos = dados.filter(linha => linha['Modelo'] && linha['Modelo'] !== '-');
+            
+            document.getElementById('dashboard').style.display = 'grid';
+            document.getElementById('tituloLista').style.display = 'block';
+            document.getElementById('txtTotal').innerText = itensValidos.length;
+            document.getElementById('txtAusentes').innerText = itensValidos.length;
+
+            const container = document.getElementById('containerCards');
+            container.innerHTML = '';
+
+            itensValidos.forEach((item, index) => {
+                const firmwareNome = item['Versão de'] || 'Não especificado';
+                const card = document.createElement('div');
+                card.className = 'card-pendencia';
+                card.id = `card-${index}`;
+
+                card.innerHTML = `
+                    <div class="info-equipamento">
+                        <h4>${item['Fabricante']} ${item['Modelo']}</h4>
+                        <p>Firmware Requerido pela Engenharia: <strong>${firmwareNome}</strong></p>
+                    </div>
+                    
+                    <div class="seletor-tipo">
+                        <label>
+                            <input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')">
+                            Arquivo Local (Até 100MB)
+                        </label>
+                        <label>
+                            <input type="radio" name="tipo-${index}" value="externo" onchange="alternarInput(${index}, 'externo')">
+                            Link Externo (Acima de 100MB)
+                        </label>
+                    </div>
+
+                    <div class="input-dinamico-container" id="container-input-${index}">
+                        <input type="file" id="file-upload-${index}">
+                        <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
+                    </div>
+
+                    <button class="btn-salvar" onclick="salvarAtualizacao(${index})">Salvar Atualização</button>
+                `;
+                container.appendChild(card);
+            });
+        }
+
+        function alternarInput(id, tipo) {
+            const container = document.getElementById(`container-input-${id}`);
+            if (tipo === 'local') {
+                container.innerHTML = `
+                    <input type="file" id="file-upload-${id}">
+                    <p class="alerta-limite">⚠️ Limite máximo do servidor local/GitHub: 100MB.</p>
+                `;
+            } else {
+                container.innerHTML = `
+                    <input type="url" id="url-link-${id}" class="input-url" placeholder="Cole a URL de download direto (Ex: Google Drive)">
+                `;
+            }
+        }
+
+        function salvarAtualizacao(id) {
+            const card = document.getElementById(`card-${id}`);
+            card.style.opacity = '0.3';
+            setTimeout(() => {
+                card.remove();
+                const contador = document.getElementById('txtAusentes');
+                contador.innerText = Math.max(0, parseInt(contador.innerText) - 1);
+            }, 500);
+        }
+    </script>
 </body>
 </html>
