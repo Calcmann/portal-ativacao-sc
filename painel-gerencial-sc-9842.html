@@ -111,8 +111,8 @@
 
     </main>
 
-    <!-- Versão do Painel Atualizada para V3.1 -->
-    <div class="marcador-versao" id="txtVersao">V3.1</div>
+    <!-- Versão do Painel Corrigida para V3.2 -->
+    <div class="marcador-versao" id="txtVersao">V3.2</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -143,13 +143,13 @@
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]);
+                tratarSelecaoArquivo(e.dataTransfer.files);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]);
+                tratarSelecaoArquivo(fileInput.files);
             }
         });
 
@@ -160,8 +160,6 @@
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
-            
-            // 🌟 ATUALIZAÇÃO CRÍTICA V3.1: Usa .onloadend para garantir o carregamento completo do CSV do Excel na memória
             leitorTexto.onloadend = function(evt) {
                 if (evt.target.readyState !== FileReader.DONE) return;
 
@@ -172,13 +170,13 @@
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
                     if(!linhasBrutas || linhasBrutas.length <= 1) return;
 
-                    const primeiraLinha = linhasBrutas[0] || '';
+                    const primeiraLinha = linhasBrutas || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
 
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
                             break;
                         }
@@ -191,13 +189,13 @@
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                         if(!colunas || colunas.length < 6) continue;
 
-                        let fabricanteBruto = colunas[0];
-                        const vipline = colunas[1];
-                        const vipsip = colunas[2];
-                        const pabx = colunas[3];
-                        const dados = colunas[4];
-                        const modelo = colunas[5];
-                        const firmware = colunas[8] ? colunas[8].trim() : ''; 
+                        let fabricanteBruto = colunas;
+                        const vipline = colunas;
+                        const vipsip = colunas;
+                        const pabx = colunas;
+                        const dados = colunas;
+                        const modelo = colunas;
+                        const firmware = colunas ? colunas.trim() : ''; 
 
                         if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
                             ultimoFabricanteValido = fabricanteBruto;
@@ -268,7 +266,7 @@
             try {
                 const resUpload = await fetch(urlAPI, {
                     method: "PUT",
-                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
+                    headers: { "Authorization": `token ${token}`, "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
                     body: JSON.stringify(payload)
                 });
 
@@ -316,7 +314,7 @@
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
-                const modelosTexto = grupo.modelos.join(" / ");
+                const modelosTexto = groupModels = grupo.modelos.join(" / ");
                 const pastaFab = grupo.fabricante.toLowerCase().replace(/ /g, '_');
 
                 card.innerHTML = `
@@ -340,6 +338,10 @@
                 `;
                 container.appendChild(card);
             });
+        }
+
+        function toggleInput(id, type) {
+            alternarInput(id, type);
         }
 
         function alternarInput(id, tipo) {
@@ -368,7 +370,7 @@
                 statusLabel.innerText = "⏳ Carregando binário...";
 
                 const reader = new FileReader();
-                reader.readAsDataURL(inputArquivo.files[0]);
+                reader.readAsDataURL(inputArquivo.files);
                 reader.onloadend = function() {
                     if (reader.readyState !== FileReader.DONE) return;
                     const base64Puro = reader.result.substring(reader.result.indexOf(',') + 1);
@@ -386,6 +388,7 @@
             }
         }
 
+        // 🌟 CORREÇÃO CRÍTICA V3.2: Alinhamento de cabeçalho "token ${token}" para evitar falsos erros de firewall
         async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel) {
             if (!token) {
                 statusLabel.className = "status-upload-card erro";
@@ -415,7 +418,7 @@
                 const respostaAPI = await fetch(urlDestinoAPI, {
                     method: "PUT",
                     headers: {
-                        "Authorization": `Bearer ${token}`,
+                        "Authorization": `token ${token}`, // Mudado de Bearer de volta para token para casar com a API
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(pacotePayload)
@@ -435,12 +438,13 @@
                         }, 300);
                     }, 1500);
                 } else {
+                    const respostaErroTxt = await respostaAPI.text();
                     statusLabel.className = "status-upload-card erro";
                     statusLabel.innerText = `❌ API recusou o arquivo (Status ${respostaAPI.status})`;
                 }
             } catch (errRede) {
                 statusLabel.className = "status-upload-card erro";
-                statusLabel.innerText = "❌ Bloqueio de rede detectado!";
+                statusLabel.innerText = "❌ Falha crítica de transmissão na rede!";
             }
         }
 
