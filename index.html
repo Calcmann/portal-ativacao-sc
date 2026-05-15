@@ -91,15 +91,15 @@
             <div class="indicadores-grid">
                 <div class="card-indicador">
                     <h4>Firmwares Únicos</h4>
-                    <p id="txtTotal">17</p>
+                    <p id="txtTotal">0</p>
                 </div>
                 <div class="card-indicador" style="border-left: 4px solid var(--claro-vermelho);">
                     <h4>Fabricantes Ativos</h4>
-                    <p id="txtFabTotal">5</p>
+                    <p id="txtFabTotal">0</p>
                 </div>
                 <div class="card-indicador">
                     <h4>Modelos Mapeados</h4>
-                    <p id="txtModTotal">25</p>
+                    <p id="txtModTotal">0</p>
                 </div>
             </div>
 
@@ -119,44 +119,82 @@
                         </tr>
                     </thead>
                     <tbody id="corpoTabela">
-                        <!-- Carga instantânea e limpa via script -->
+                        <!-- Renderização instantânea controlada via array de memória -->
                     </tbody>
                 </table>
             </div>
         </section>
     </div>
 
-    <!-- Versão Atualizada para V3.8 -->
-    <div class="marcador-versao" id="txtVersao">V3.8</div>
+    <div class="marcador-versao" id="txtVersao">V3.9</div>
 
     <script>
-        // 🌟 MATRIZ REAL V3.8: Apenas registros extraídos das 3 páginas do PDF da Engenharia
+        // 🌟 BASE DE DADOS OFICIAL V3.9: Mapeamento cirúrgico de todas as linhas do seu CSV real
         const dadosGlobaisBase = [
-            { fabricante: "ALIGERA", firmware: "AG_v2.4.11.bin", modelos: ["AG2002", "AG2004", "AG2008"], vipline: true, vipsip: true, pabx: false, dados: false },
-            { fabricante: "ALIGERA", firmware: "AG_v3.1.2.cc", modelos: ["AG3200", "AG3400"], vipline: true, vipsip: false, pabx: true, dados: false },
-            { fabricante: "CISCO", firmware: "c1841-advipservicesk9-mz.124-15.T1.bin", modelos: ["1841"], vipline: true, vipsip: true, pabx: false, dados: true },
-            { fabricante: "CISCO", firmware: "c1900-universalk9-mz.SPA.154-3.M3.SPA", modelos: ["1905", "1921"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "CISCO", firmware: "c2800nm-advipservicesk9-mz.124-24.T4.bin", modelos: ["2801", "2811", "2821", "2851"], vipline: true, vipsip: true, pabx: false, dados: true },
-            { fabricante: "CISCO", firmware: "c2900-universalk9-mz.SPA.155-3.M4.SPA", modelos: ["2901", "2911", "2951"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "CISCO", firmware: "c3825-advipservicesk9-mz.124-24.T7.bin", modelos: ["3825", "3845"], vipline: true, vipsip: true, pabx: false, dados: true },
-            { fabricante: "CISCO", firmware: "c3900-universalk9-mz.SPA.157-3.M2.SPA", modelos: ["3925", "3945"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "CISCO", firmware: "isr4300-universalk9.16.09.04.SPA", modelos: ["ISR4321", "ISR4331", "ISR4351"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "CISCO", firmware: "isr4400-universalk9.17.03.04a.SPA", modelos: ["ISR4431", "ISR4451"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "DATACOM", firmware: "dmos_v5.4.1.img", modelos: ["DM4270", "DM4370"], vipline: false, vipsip: false, pabx: false, dados: true },
-            { fabricante: "DATACOM", firmware: "dmos_v6.2.0.bin", modelos: ["DM4170", "DM4250"], vipline: false, vipsip: false, pabx: false, dados: true },
-            { fabricante: "DIGISTAR", firmware: "DS_v4.2.1.rom", modelos: ["XIP220", "XIP230"], vipline: true, vipsip: false, pabx: true, dados: false },
-            { fabricante: "FORTINET", firmware: "FGT_40F-v7.2.11.M-build1245.out", modelos: ["Fortigate 40F", "Fortigate 60F", "Fortigate 100F"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "HUAWEI", firmware: "AR5700S-V300R022C00SPC100.cc", modelos: ["AR5700S"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "HUAWEI", firmware: "AR6700-V300R019C10SPC200.cc", modelos: ["AR6120", "AR6140", "AR6700"], vipline: true, vipsip: true, pabx: true, dados: true },
-            { fabricante: "HUAWEI", firmware: "AR8000-V300R021C00SPC300.cc", modelos: ["AR8140", "AR8000"], vipline: true, vipsip: true, pabx: true, dados: true }
+            { fabricante: "DIGISTAR", firmware: "sip_ag30plus_v1.15 / system_ag30plus_v1.12 / xilinx_ag30plus_v2.5", modelos: ["AG30 Plus (Legado)"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "DIGISTAR", firmware: "firmware_ag30plus_v2.3b / xilinx_ag30plus_v2.3", modelos: ["AG30_Plus_novo"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "DIGISTAR", firmware: "1.16h_1dsp", modelos: ["RCG5211"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "DIGISTAR", firmware: "1.16h_2dsp", modelos: ["RCG5220"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "ALIGERA", firmware: "AG561 - 8.10", modelos: ["AG561"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "ALIGERA", firmware: "AG2000 - 4.57.40", modelos: ["AG2000"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "ALIGERA", firmware: "AG1600 - 4.57.40", modelos: ["AG1600"], vipline: true, vipsip: false, pabx: false, dados: false },
+            { fabricante: "CISCO", firmware: "c1900-universalk9-mz.SPA.157-3.M9", modelos: ["1905"], vipline: false, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c1900-universalk9-mz.SPA.151-4.M1.bin", modelos: ["1900 Generic (SIP)"], vipline: false, vipsip: false, pabx: true, dados: false },
+            { fabricante: "CISCO", firmware: "c1841-ipbasek9-mz.124-13a.bin", modelos: ["1841"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c2801-advipservicesk9-mz.151-4.M10.bin", modelos: ["2801 (v15.1)"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c2801-adventerprisek9-mz.124-24.T5.bin", modelos: ["2801 (v12.4)"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c2800nm-adventerprisek9-mz.151-4.M.bin", modelos: ["2811", "2821"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c2800nm-advipservicesk9-mz.151-4.M10.bin", modelos: ["2851"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c3825-advipservicesk9-mz.151-4.M10.bin", modelos: ["3825"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c3845-advipservicesk9-mz.151-4.M10.bin", modelos: ["3845"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c2900-universalk9-mz.SPA.156-1.T0a.bin", modelos: ["2901", "2911", "2921"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "CISCO", firmware: "c2951-universalk9-mz.SPA.156-3.M8.bin", modelos: ["2951"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "CISCO", firmware: "c3900-universalk9-mz.SPA.151-4.M10.bin", modelos: ["3925", "3945"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "CISCO", firmware: "isr4200-universalk9_ias.17.03.02.SPA.bin", modelos: ["ISR4221", "ISR4200 Series"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "ISR4300-UNIVERSALK9.17.06.03A.SPA.BIN", modelos: ["ISR4300 (Voice)"], vipline: true, vipsip: true, pabx: false, dados: false },
+            { fabricante: "CISCO", firmware: "isr4300-universalk9.17.12.05a.SPA.bin", modelos: ["ISR4300 (Dados)"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "isr4400-universalk9.03.16.04b.S.155-3.S4b-ext.SPA.bin", modelos: ["ISR4400 (Voice)"], vipline: true, vipsip: true, pabx: false, dados: false },
+            { fabricante: "CISCO", firmware: "isr4400-universalk9.17.12.05a.SPA.bin", modelos: ["ISR4400 (Dados)"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c800m-universalk9-mz.SPA.159-3.M11.bin", modelos: ["C841"], vipline: false, vipsip: true, pabx: true, dados: true },
+            { fabricante: "CISCO", firmware: "asr1001-universal.03.16.10.S.155-3.S10-ext", modelos: ["ASR 1001"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "asr1001x-universalk9.17.09.07a.SPA.bin", modelos: ["ASR 1001-X"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c900-universalk9-mz.SPA.159-3.M11.bin", modelos: ["C921"], vipline: false, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c8000aes-universalk9.17.12.06.SPA.bin", modelos: ["Catalyst 8500L"], vipline: false, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c8000be-universalk9.17.12.05a.SPA.bin", modelos: ["Catalyst 8300", "Catalyst 8200"], vipline: false, vipsip: true, pabx: false, dados: true },
+            { fabricante: "CISCO", firmware: "c1100-universalk9.17.12.05a.SPA.bin", modelos: ["ISR1100"], vipline: false, vipsip: true, pabx: true, dados: true },
+            { fabricante: "CISCO", firmware: "MX 19.2.7", modelos: ["MX67", "MX75", "MX85", "MX95", "MX105", "MX250", "MX450"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "A_MSR93X-CMW520-R2512P04", modelos: ["MSR930"], vipline: false, vipsip: false, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "MSR954-CMW710-R0306P82.IPE", modelos: ["MSR954"], vipline: false, vipsip: false, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "A_MSR201X-CMW520-R2514P14", modelos: ["MSR20-11"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "A_MSR301X-CMW520-R2514P14-SI", modelos: ["MSR30-10"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "A_MSR30-CMW520-R2516-SI", modelos: ["MSR30-20", "MSR30-40", "MSR30-60", "MSR30-44", "MSR30-64"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "MSR100X-CMW710-R6749P21.ipe", modelos: ["MSR1002"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "MSR3000-CMW710-E0603.IPE", modelos: ["MSR30-12"], vipline: true, vipsip: true, pabx: true, dados: true },
+            { fabricante: "HPE ARUBA", firmware: "MSR4000-CMW710-E0603.IPE", modelos: ["MSR40-80"], vipline: true, vipsip: true, pabx: false, dados: true },
+            { fabricante: "FORTINET", firmware: "v7.2.11.M-build1740", modelos: ["FORTIGATE 40F", "FORTIGATE 60F", "FORTIGATE 100F"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "HUAWEI", firmware: "5.160 (AR160 V200R007C00SPCb00)Patch:V200R007SPH008", modelos: ["AR161"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "HUAWEI", firmware: "AR650A_V300R024C00SPC100", modelos: ["AR651"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "ITECH", firmware: "SM3_ALL_itech.3.2.1.51_2_6.bin", modelos: ["SMIII (Apenas MPLS)"], vipline: true, vipsip: true, pabx: true, dados: false },
+            { fabricante: "DATACOM", firmware: "DM2500-1.16.4-1108-20.im", modelos: ["DM2500LTE (Apenas MPLS)"], vipline: true, vipsip: true, pabx: true, dados: false },
+            { fabricante: "HUAWEI", firmware: "AR5700S-E_V600R024C00SPC100.cc", modelos: ["AR5700S"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "HUAWEI", firmware: "AR6700L-5700H_V600R024C00SPC100.cc", modelos: ["AR6700", "AR5710H"], vipline: false, vipsip: false, pabx: false, dados: true },
+            { fabricante: "HUAWEI", firmware: "AR8000_V600R024C00SPC100.cc", modelos: ["AR8000"], vipline: false, vipsip: false, pabx: false, dados: true }
         ];
 
-        // Força ordenação alfabética rigorosa por Fabricante
+        // Ordenação alfabética estrita e dinâmica por Fabricante
         dadosGlobaisBase.sort((a, b) => a.fabricante.localeCompare(b.fabricante, 'pt', { sensitivity: 'base' }));
 
         function inicializarConsole() {
-            // Mapeia fabricantes distintos para a barra lateral de filtros
-            const fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
+            // Calcula contagens totais com base na matriz real do CSV
+            let contagemModelosMapeados = 0;
+            dadosGlobaisBase.forEach(g => contagemModelosMapeados += g.modelos.length);
+
+            document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
+            document.getElementById('txtModTotal').innerText = contagemModelosMapeados;
+
+            fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
+            document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
+            
             const containerFab = document.getElementById('containerFiltroFabricante');
             containerFab.innerHTML = '';
             fabricantesDistintos.forEach(fab => {
@@ -230,8 +268,6 @@
         }
 
         document.getElementById('inputBusca').addEventListener('input', filtrarDados);
-        
-        // Carga imediata
         inicializarConsole();
     </script>
 </body>
