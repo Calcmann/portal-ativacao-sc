@@ -35,8 +35,6 @@
         .upload-secao.dragover { border-color: var(--claro-vermelho); background-color: #fef2f2; }
         .btn-claro { background-color: var(--claro-vermelho); color: white; border: none; padding: 12px 24px; font-weight: bold; border-radius: 25px; cursor: pointer; font-size: 0.95rem; margin-top: 12px; display: inline-block; text-decoration: none; }
         .btn-claro:hover { background-color: var(--claro-vermelho-hover); }
-        
-        .terminal-log { width: 100%; max-width: 600px; background-color: #1e1e1e; color: #f5c400; font-family: 'Courier New', Courier, monospace; font-size: 0.8rem; padding: 12px; border-radius: 6px; margin: 16px auto 0 auto; text-align: left; max-height: 150px; overflow-y: auto; box-shadow: inset 0 2px 6px rgba(0,0,0,0.5); display: block; line-height: 1.4; }
 
         .dashboard-resumo { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; display: none; }
         .mini-card { background-color: var(--bg-card); padding: 16px; border-radius: 8px; border: 1px solid var(--borda); text-align: center; }
@@ -63,22 +61,7 @@
         .btn-salvar { background-color: var(--texto-principal); color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; align-self: flex-end; }
         .btn-salvar:hover { background-color: #000; }
 
-        .marcador-versao {
-            position: fixed;
-            bottom: 16px;
-            right: 16px;
-            background-color: var(--texto-principal);
-            color: #ffffff;
-            font-size: 0.75rem;
-            font-weight: 700;
-            padding: 6px 12px;
-            border-radius: 12px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-            z-index: 9999;
-            letter-spacing: 0.5px;
-            border: 1px solid rgba(255,255,255,0.1);
-        }
-
+        .marcador-versao { position: fixed; bottom: 16px; right: 16px; background-color: var(--texto-principal); color: white; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 9999; }
         .btn-contingencia { background-color: var(--verde-sucesso); color: white; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 0.85rem; margin-top: 8px; border: none; cursor: pointer; }
         .btn-contingencia:hover { background-color: #117a3b; }
     </style>
@@ -103,8 +86,6 @@
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
-
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Reconhecimento de Fabricante V2.5 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -125,30 +106,22 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.5 -->
-    <div class="marcador-versao" id="txtVersao">V2.5</div>
+    <!-- Versão do Painel Atualizada para V2.6 -->
+    <div class="marcador-versao" id="txtVersao">V2.6</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('fileInput');
         const tokenInput = document.getElementById('inputToken');
         const statusConexao = document.getElementById('statusConexao');
-        const caixaLog = document.getElementById('caixaLog');
 
-        const GITHUB_USER = "seu-usuario-aqui";
+        const GITHUB_USER = "calcmann";
         const GITHUB_REPO = "portal-ativacao-sc";
-
-        function registrarLog(mensagem) {
-            const timestamp = new Date().toLocaleTimeString();
-            caixaLog.innerHTML += `<br>> [${timestamp}] ${mensagem}`;
-            caixaLog.scrollTop = caixaLog.scrollHeight;
-        }
 
         tokenInput.addEventListener('input', () => {
             if(tokenInput.value.trim().length > 10) {
                 statusConexao.className = 'status-dot active';
                 statusConexao.title = "Chave Admin Pronta";
-                registrarLog("Chave de acesso detectada.");
             } else {
                 statusConexao.className = 'status-dot';
                 statusConexao.title = "Chave não informada";
@@ -164,64 +137,51 @@
 
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
-            registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]);
+                tratarSelecaoArquivo(e.dataTransfer.files);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
-            registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]);
+                tratarSelecaoArquivo(fileInput.files);
             }
         });
 
         function tratarSelecaoArquivo(arquivoObjeto) {
-            if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Erro: Falha ao isolar arquivo físico.");
-                return;
-            }
+            if (!arquivoObjeto || !arquivoObjeto.name) return;
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando leitor V2.5 com memória de fabricante...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
                 try {
                     const textoBruto = evt.target.result;
-                    registrarLog("Texto bruto obtido com sucesso.");
-                    
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    const primeiraLinha = linhasBrutas[0] || '';
+                    const primeiraLinha = linhasBrutas || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador ativo mapeado: [ ${separador} ]`);
 
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
                             break;
                         }
                     }
 
                     const dicionarioFirmwares = {};
-                    
-                    // 🌟 VARIAVEL DE MEMÓRIA V2.5: Guarda o último fabricante válido encontrado
                     let ultimoFabricanteValido = "Claro S.A.";
 
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
-                        
                         if(colunas.length < 6) continue;
 
-                        let fabricanteBruto = colunas[0];
-                        const modelo = colunas[5];     
-                        const firmware = colunas[8] ? colunas[8].trim() : ''; 
+                        let fabricanteBruto = colunas;
+                        const modelo = colunas;     
+                        const firmware = colunas ? colunas.trim() : ''; 
 
-                        // Lógica de Forward Fill: Atualiza a memória se houver um texto novo, ou usa o anterior se estiver vazio
                         if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
                             ultimoFabricanteValido = fabricanteBruto;
                         }
@@ -243,14 +203,10 @@
                     }
 
                     const matrizAgrupada = Object.values(dicionarioFirmwares);
-                    registrarLog(`Processamento concluído: ${matrizAgrupada.length} firmwares distintos mapeados.`);
-                    
                     gerarCardsNaTelaAgrupados(matrizAgrupada);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
-                } catch(errorInterno) {
-                    registrarLog("❌ Erro de processamento: " + errorInterno.message);
-                }
+                } catch(errorInterno) {}
             };
         }
 
@@ -261,18 +217,14 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Rota API ignorada. Chave de acesso em branco.");
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
 
-            registrarLog("Codificando matriz em Base64...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
-            
             const conteudoBase64 = btoa(unescape(encodeURIComponent(textoPlain)));
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-            
             progressBar.style.width = '50%';
 
             let shaExistente = null;
@@ -285,22 +237,13 @@
             } catch(e) {}
 
             progressBar.style.width = '75%';
-
-            const payload = {
-                message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
-                content: conteudoBase64,
-                branch: "main"
-            };
+            const payload = { message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`, content: conteudoBase64, branch: "main" };
             if(shaExistente) payload.sha = shaExistente;
 
             try {
                 const resUpload = await fetch(urlAPI, {
                     method: "PUT",
-                    headers: {
-                        "Authorization": `Bearer ${token}`,
-                        "Content-Type": "application/json",
-                        "Accept": "application/vnd.github.v3+json"
-                    },
+                    headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json", "Accept": "application/vnd.github.v3+json" },
                     body: JSON.stringify(payload)
                 });
 
@@ -308,7 +251,6 @@
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#16a34a';
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                    registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
                     ativarInterfaceContingencia(textoPlain);
@@ -332,7 +274,6 @@
 
             document.getElementById('btnCopiarTexto').addEventListener('click', () => {
                 navigator.clipboard.writeText(textoPlano);
-                registrarLog("Dados da planilha copiados.");
                 alert("✅ Conteúdo copiado! Agora abra a página do GitHub no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página.");
             });
         }
@@ -350,7 +291,6 @@
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
-
                 const modelosTexto = grupo.modelos.join(" / ");
 
                 card.innerHTML = `
@@ -371,7 +311,6 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog("Relação de cards consolidados gerada com sucesso na tela.");
         }
 
         function alternarInput(id, tipo) {
@@ -410,7 +349,6 @@
                 }
             } catch(e) {}
         }
-
         setTimeout(buscarUltimaAtualizacao, 1500);
     </script>
 </body>
