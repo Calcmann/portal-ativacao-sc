@@ -70,18 +70,19 @@
     </header>
 
     <div class="busca-container">
-        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Cisco, 1841)...">
+        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite o fabricante, firmware, serviço (ex: VIPSIP) ou qualquer modelo (ex: 3825)...">
     </div>
 
     <main class="grid-equipamentos" id="listaEquipamentos">
-        <div class="status-carregando">Sincronizando matriz de engenharia com os smartphones...</div>
+        <div class="status-carregando">Sincronizando matriz de engenharia regional...</div>
     </main>
 
-    <div class="marcador-versao" id="txtVersao">V2.4</div>
+    <div class="marcador-versao" id="txtVersao">V2.5</div>
 
     <script>
         let dadosAgrupadosCampo = [];
 
+        // ALERTA: Insira o seu usuário e nome do repositório para ativar o relógio do commit
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -91,11 +92,11 @@
                 const textoCSV = await resposta.text();
                 processarCSVCampoNativo(textoCSV);
             } catch (erro) {
-                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Matriz 'engenharia.csv' não sincronizada na nuvem. Execute a gravação manual no painel ADM.</div>`;
+                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Arquivo 'engenharia.csv' não localizado no repositório. Atualize via Painel Gerencial.</div>`;
             }
         }
 
-        // MOTOR V2.4: Agrupamento simétrico por posição de colunas físicas
+        // MOTOR V2.5: Leitura por posições com Forward Fill (Memória de Fabricante) integrado
         function processarCSVCampoNativo(texto) {
             const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
             if(linhasBrutas.length <= 1) return;
@@ -113,26 +114,31 @@
             }
 
             const dicionarioCampo = {};
+            let ultimoFabricanteValido = "Claro S.A.";
 
             for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
                 const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                 
                 if(colunas.length < 6) continue;
 
-                const fabricante = colunas[0].trim() || 'Claro S.A.';
-                const vipline = colunas[1].trim();
-                const vipsip = colunas[2].trim();
-                const pabx = colunas[3].trim();
-                const dados = colunas[4].trim();
-                const modelo = colunas[5].trim();
-                const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado';
+                let fabricanteBruto = colunas[0];
+                const vipline = colunas[1];
+                const vipsip = colunas[2];
+                const pabx = colunas[3];
+                const dados = colunas[4];
+                const modelo = colunas[5];
+                const firmware = colunas[8] ? colunas[8].trim() : '';
+
+                if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
+                    ultimoFabricanteValido = fabricanteBruto;
+                }
 
                 if(modelo && modelo !== '-' && firmware && firmware !== '-' && firmware !== '') {
-                    const chaveGrupo = `${fabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+                    const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
 
                     if(!dicionarioCampo[chaveGrupo]) {
                         dicionarioCampo[chaveGrupo] = {
-                            fabricante: fabricante,
+                            fabricante: ultimoFabricanteValido,
                             firmware: firmware,
                             modelos: [],
                             servicos: { vipline: false, vipsip: false, pabx: false, dados: false }
@@ -143,7 +149,6 @@
                         dicionarioCampo[chaveGrupo].modelos.push(modelo);
                     }
 
-                    // Consolida as tags de serviço ativas para qualquer modelo do grupo
                     if(vipline === 'X') dicionarioCampo[chaveGrupo].servicos.vipline = true;
                     if(vipsip === 'X') dicionarioCampo[chaveGrupo].servicos.vipsip = true;
                     if(pabx === 'X') dicionarioCampo[chaveGrupo].servicos.pabx = true;
@@ -163,7 +168,6 @@
                 const fabPasta = grupo.fabricante.toLowerCase().replace(/ /g, '_');
                 const modelosTexto = grupo.modelos.join(" / ");
 
-                // Monta as tags consolidadas do grupo de ativação
                 let servicosHTML = '';
                 if(grupo.servicos.vipline) servicosHTML += `<span class="service-badge">VIPLINE</span>`;
                 if(grupo.servicos.vipsip) servicosHTML += `<span class="service-badge">VIPSIP</span>`;
@@ -195,7 +199,6 @@
             });
         }
 
-        // Filtro de busca inteligente integrado que pesquisa por fabricante, firmware, serviços ou por qualquer modelo contido na lista de compatibilidade do card
         document.getElementById('inputBusca').addEventListener('input', function(e) {
             const termo = e.target.value.toLowerCase();
             const cards = document.querySelectorAll('.card-equipamento');
@@ -211,7 +214,7 @@
                 if(res.ok) {
                     const dados = await res.json();
                     if(dados && dados.length > 0) {
-                        const dataCommit = new Date(dados[0].commit.committer.date);
+                        const dataCommit = new Date(dados.commit.committer.date);
                         const dia = String(dataCommit.getDate()).padStart(2, '0');
                         const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
                         const horas = String(dataCommit.getHours()).padStart(2, '0');
