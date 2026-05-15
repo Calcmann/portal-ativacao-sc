@@ -100,10 +100,10 @@
             <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
             
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
-                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
+                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.3s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V2.0 carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor V2.1 Indexado por Posição carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -124,8 +124,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.0 -->
-    <div class="marcador-versao" id="txtVersao">V2.0</div>
+    <!-- Versão Atualizada para V2.1 -->
+    <div class="marcador-versao" id="txtVersao">V2.1</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -165,25 +165,25 @@
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Captura o arquivo isolado correto
+                tratarSelecaoArquivo(e.dataTransfer.files[0]);
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]); // Captura o arquivo isolado correto
+                tratarSelecaoArquivo(fileInput.files[0]);
             }
         });
 
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Erro: Falha ao carregar o arquivo.");
+                registrarLog("❌ Erro: Falha ao isolar arquivo físico.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando leitor nativo V2.0...");
+            registrarLog("Executando motor V2.1 por Índices de Posição Físicos...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
@@ -192,33 +192,54 @@
                     const textoBruto = evt.target.result;
                     registrarLog("Texto bruto obtido com sucesso.");
                     
-                    // 🌟 REESTRUTURAÇÃO V2.0: Mapeamento de quebra robusto e tolerante a falhas do Excel
+                    // Separa as linhas limpando quebras
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    
-                    if(linhasBrutas.length === 0) {
-                        registrarLog("❌ Erro: Planilha vazia ou ilegível.");
+                    if(linhasBrutas.length <= 1) {
+                        registrarLog("❌ Erro: O arquivo possui apenas cabeçalho ou está em branco.");
                         return;
                     }
 
+                    // Força a detecção do caractere separador
                     const primeiraLinha = linhasBrutas[0];
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador de tabela mapeado: [ ${separador} ]`);
+                    registrarLog(`Separador detectado: [ ${separador} ]`);
 
-                    const cabecalhos = primeiraLinha.split(separador).map(c => c.replace(/[\r\n\t\"]+/g, " ").trim());
-                    registrarLog(`Cabeçalhos lidos: ${cabecalhos.join(' | ')}`);
-                    
-                    const matrizDados = [];
-                    for(let i = 1; i < linhasBrutas.length; i++) {
-                        const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"]/g, "").trim());
-                        let objLinha = {};
-                        cabecalhos.forEach((cab, idx) => {
-                            objLinha[cab] = colunas[idx] || '';
-                        });
-                        matrizDados.push(objLinha);
+                    // Descobre em qual linha começa a tabela varrendo até achar um modelo válido
+                    let indiceTabela = 0;
+                    for(let i = 0; i < linhasBrutas.length; i++) {
+                        const colTeste = linhasBrutas[i].split(separador);
+                        if(colTeste.length >= 6 && colTeste[0].toLowerCase().includes('fabricante')) {
+                            indiceTabela = i;
+                            registrarLog(`Linha de cabeçalho localizada no índice estrutural: ${i}`);
+                            break;
+                        }
                     }
 
-                    registrarLog(`Estrutura concluída. Enviando ${matrizDados.length} objetos para o filtro...`);
-                    gerarDashboardAuditoria(matrizDados);
+                    // Processa as linhas de dados usando estritamente os índices numéricos das colunas
+                    const matrizDados = [];
+                    for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
+                        const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"]/g, "").trim());
+                        
+                        // Ignora linhas que não possuem colunas suficientes
+                        if(colunas.length < 6) continue;
+
+                        // Mapeamento Direto por Posição Física da Coluna
+                        const fabricante = colunas[0]; // Coluna 1
+                        const modelo = colunas[5];     // Coluna 6
+                        const firmware = colunas[8] || 'Não especificado'; // Coluna 9
+
+                        // Validador tolerante: Se tiver Fabricante e Modelo preenchidos, a linha é válida
+                        if(modelo && modelo !== '-' && fabricante && fabricante !== '-') {
+                            matrizDados.push({
+                                fabricante: fabricante,
+                                modelo: modelo,
+                                firmware: firmware
+                            });
+                        }
+                    }
+
+                    registrarLog(`Processamento concluído. ${matrizDados.length} equipamentos mapeados com sucesso.`);
+                    gerarCardsNaTela(matrizDados);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
@@ -285,11 +306,11 @@
                     registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    registrarLog(`⚠️ Rota bloqueada por segurança. Ativando Contingência...`);
+                    registrarLog(`⚠️ Rota API recusada. Ativando Contingência...`);
                     ativarInterfaceContingencia(textoPlain);
                 }
             } catch(errFetch) {
-                registrarLog(`⚠️ Rota bloqueada por proxy. Ativando Contingência...`);
+                registrarLog(`⚠️ Conexão de rede bloqueada. Ativando Contingência...`);
                 ativarInterfaceContingencia(textoPlain);
             }
         }
@@ -313,18 +334,8 @@
             });
         }
 
-        function gerarDashboardAuditoria(dados) {
-            registrarLog("Filtrando e higienizando os modelos válidos...");
-            
-            // 🌟 ATUALIZAÇÃO V2.0: Tratamento robusto por aproximação lógica tolerante a quebras
-            const itensValidos = dados.filter(linha => {
-                const chaves = Object.keys(linha);
-                const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
-                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].toString().trim() !== '' && linha[chaveModelo].toString().trim() !== '-';
-            });
-            
-            registrarLog(`Mapeamento final concluído: ${itensValidos.length} equipamentos válidos.`);
-            
+        // 🌟 NOVA FUNÇÃO V2.1: Injeta os cards ignorando nomes textuais de chaves
+        function gerarCardsNaTela(itensValidos) {
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
             document.getElementById('txtTotal').innerText = itensValidos.length;
@@ -334,23 +345,14 @@
             container.innerHTML = '';
 
             itensValidos.forEach((item, index) => {
-                const chaves = Object.keys(item);
-                const chaveFab = chaves.find(k => k.toLowerCase().includes('fabricante')) || '';
-                const chaveMod = chaves.find(k => k.toLowerCase().includes('modelo')) || '';
-                const chaveVer = chaves.find(k => k.toLowerCase().includes('versão de')) || chaves.find(k => k.toLowerCase().includes('versao')) || '';
-
-                const fabricante = item[chaveFab] || 'Genérico';
-                const modelo = item[chaveMod] || 'Desconhecido';
-                const firmwareNome = item[chaveVer] || 'Não especificado';
-
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
 
                 card.innerHTML = `
                     <div class="info-equipamento">
-                        <h4>${fabricante} ${modelo}</h4>
-                        <p>Firmware Requerido pela Engenharia: <strong>${firmwareNome}</strong></p>
+                        <h4>${item.fabricante} ${item.modelo}</h4>
+                        <p>Firmware Requerido pela Engenharia: <strong>${item.firmware}</strong></p>
                     </div>
                     <div class="seletor-tipo">
                         <label><input type="radio" name="tipo-${index}" value="local" checked onchange="alternarInput(${index}, 'local')"> Arquivo Local (Até 100MB)</label>
@@ -364,7 +366,7 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog("Painel 100% carregado e pronto para uso.");
+            registrarLog("Painel 100% renderizado com os índices fixos.");
         }
 
         function alternarInput(id, tipo) {
