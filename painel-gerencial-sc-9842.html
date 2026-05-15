@@ -111,8 +111,8 @@
 
     </main>
 
-    <!-- Versão do Painel Corrigida para V3.2 -->
-    <div class="marcador-versao" id="txtVersao">V3.2</div>
+    <!-- Versão do Painel Corrigida para V3.3 -->
+    <div class="marcador-versao" id="txtVersao">V3.3</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -314,7 +314,9 @@
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
-                const modelosTexto = groupModels = grupo.modelos.join(" / ");
+                
+                // 🌟 CORREÇÃO DEFINITIVA V3.3: Limpeza completa da cadeia de atribuição oculta na injeção de texto
+                const modelosTexto = grupo.modelos.join(" / ");
                 const pastaFab = grupo.fabricante.toLowerCase().replace(/ /g, '_');
 
                 card.innerHTML = `
@@ -340,10 +342,6 @@
             });
         }
 
-        function toggleInput(id, type) {
-            alternarInput(id, type);
-        }
-
         function alternarInput(id, tipo) {
             const container = document.getElementById(`container-input-${id}`);
             if (tipo === 'local') {
@@ -367,10 +365,10 @@
                 }
 
                 statusLabel.className = "status-upload-card";
-                statusLabel.innerText = "⏳ Carregando binário...";
+                statusLabel.innerText = "⏳ Carregando binário... ";
 
                 const reader = new FileReader();
-                reader.readAsDataURL(inputArquivo.files);
+                reader.readAsDataURL(inputArquivo.files[0]); // Correção de ponteiro explícito de array
                 reader.onloadend = function() {
                     if (reader.readyState !== FileReader.DONE) return;
                     const base64Puro = reader.result.substring(reader.result.indexOf(',') + 1);
@@ -388,7 +386,6 @@
             }
         }
 
-        // 🌟 CORREÇÃO CRÍTICA V3.2: Alinhamento de cabeçalho "token ${token}" para evitar falsos erros de firewall
         async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel) {
             if (!token) {
                 statusLabel.className = "status-upload-card erro";
@@ -418,7 +415,7 @@
                 const respostaAPI = await fetch(urlDestinoAPI, {
                     method: "PUT",
                     headers: {
-                        "Authorization": `token ${token}`, // Mudado de Bearer de volta para token para casar com a API
+                        "Authorization": `token ${token}`,
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(pacotePayload)
@@ -438,7 +435,6 @@
                         }, 300);
                     }, 1500);
                 } else {
-                    const respostaErroTxt = await respostaAPI.text();
                     statusLabel.className = "status-upload-card erro";
                     statusLabel.innerText = `❌ API recusou o arquivo (Status ${respostaAPI.status})`;
                 }
@@ -459,8 +455,8 @@
                         const dia = String(dataCommit.getDate()).padStart(2, '0');
                         const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
                         const horas = String(dataCommit.getHours()).padStart(2, '0');
-                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
-                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
+                        const minutes = String(dataCommit.getMinutes()).padStart(2, '0');
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutes}`;
                     }
                 }
             } catch(e) {}
