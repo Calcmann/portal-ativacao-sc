@@ -70,7 +70,7 @@
             color: #ffffff;
             font-size: 0.75rem;
             font-weight: 700;
-            padding: 4px 10px;
+            padding: 6px 12px;
             border-radius: 12px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.15);
             z-index: 9999;
@@ -96,7 +96,6 @@
             <input type="file" id="fileInput" accept=".csv" style="display: none;">
             <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
             
-            <!-- Barra de Progresso Corrigida -->
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
@@ -120,7 +119,8 @@
 
     </main>
 
-    <div class="marcador-versao">V1.1</div>
+    <!-- O texto inicial será substituído automaticamente pelo relógio do GitHub -->
+    <div class="marcador-versao" id="txtVersao">Sincronizando...</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -128,7 +128,7 @@
         const tokenInput = document.getElementById('inputToken');
         const statusConexao = document.getElementById('statusConexao');
 
-        // Configurações do Repositório
+        // Configurações do Repositório (Altere para os seus dados reais)
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -149,30 +149,21 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
-        // Captura e extrai o arquivo de forma isolada
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             const dt = e.dataTransfer;
-            if(dt.files.length > 0) {
-                tratarSelecaoArquivo(dt.files[0]); // Pega estritamente o arquivo [0]
-            }
+            if(dt.files.length > 0) tratarSelecaoArquivo(dt.files[0]);
         });
 
         fileInput.addEventListener('change', (e) => {
-            if(fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]); // Pega estritamente o arquivo [0]
-            }
+            if(fileInput.files.length > 0) tratarSelecaoArquivo(fileInput.files[0]);
         });
 
         function tratarSelecaoArquivo(arquivoUnico) {
-            if (!arquivoUnico || !arquivoUnico.name) {
-                document.getElementById('uploadStatus').innerText = "⚠️ Falha ao isolar o objeto do arquivo.";
-                return;
-            }
+            if (!arquivoUnico || !arquivoUnico.name) return;
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoUnico.name}</strong>`;
             
-            // 1. Processamento local do PapaParse
             Papa.parse(arquivoUnico, {
                 header: true,
                 skipEmptyLines: true,
@@ -181,7 +172,6 @@
                 }
             });
 
-            // 2. Dispara o upload enviando o objeto de arquivo tratado
             salvarCSVNoGithub(arquivoUnico);
         }
 
@@ -196,7 +186,6 @@
                 return;
             }
 
-            // Exibe e reseta a barra de progresso
             progressContainer.style.display = 'block';
             progressBar.style.width = '10%';
             progressBar.style.background = '#ee1d23';
@@ -214,7 +203,7 @@
 
             reader.readAsDataURL(arquivo);
             reader.onload = async () => {
-                const conteudoBase64 = reader.result.split(',')[1]; // Captura apenas a string Base64 limpa
+                const conteudoBase64 = reader.result.split(',')[1];
                 
                 uploadStatus.innerHTML = `Buscando histórico do arquivo no repositório...`;
                 progressBar.style.width = '60%';
@@ -249,16 +238,18 @@
 
                 if(resUpload.ok) {
                     progressBar.style.width = '100%';
-                    progressBar.style.background = '#16a34a'; // Muda para verde
+                    progressBar.style.background = '#16a34a';
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
                     
+                    // Recarrega o relógio de atualização após o commit
                     setTimeout(() => {
                         progressContainer.style.display = 'none';
+                        buscarUltimaAtualizacao();
                     }, 4000);
                 } else {
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#ee1d23';
-                    uploadStatus.innerHTML = `❌ <strong>Erro na API do GitHub. Verifique se o nome do usuário e do repositório nas linhas 112 e 113 estão corretos.</strong>`;
+                    uploadStatus.innerHTML = `❌ <strong>Erro na API do GitHub. Verifique os parâmetros configurados.</strong>`;
                 }
             };
         }
@@ -331,6 +322,34 @@
                 contador.innerText = Math.max(0, parseInt(contador.innerText) - 1);
             }, 500);
         }
+
+        // NOVA FUNÇÃO: Busca o horário do último commit direto da API pública do GitHub
+        async function buscarUltimaAtualizacao() {
+            try {
+                const urlCommits = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
+                const res = await fetch(urlCommits);
+                if(res.ok) {
+                    const dados = await res.json();
+                    if(dados.length > 0) {
+                        const dataCommit = new Date(dados[0].commit.committer.date);
+                        // Formata para o padrão brasileiro (DD/MM às HH:MM)
+                        const dia = String(dataCommit.getDate()).padStart(2, '0');
+                        const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
+                        const horas = String(dataCommit.getHours()).padStart(2, '0');
+                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
+                        
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
+                        return;
+                    }
+                }
+                document.getElementById('txtVersao').innerText = "Versão: V1.1";
+            } catch(e) {
+                document.getElementById('txtVersao').innerText = "Versão: V1.1";
+            }
+        }
+
+        // Executa a busca ao abrir a página
+        buscarUltimaAtualizacao();
     </script>
 </body>
 </html>
