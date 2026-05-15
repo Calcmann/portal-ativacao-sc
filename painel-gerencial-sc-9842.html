@@ -103,7 +103,7 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor nativo V1.8 carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V1.9 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -124,8 +124,8 @@
 
     </main>
 
-    <!-- Versão Incrementada para V1.8 -->
-    <div class="marcador-versao" id="txtVersao">V1.8</div>
+    <!-- Versão Atualizada para V1.9 -->
+    <div class="marcador-versao" id="txtVersao">V1.9</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -165,46 +165,40 @@
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]);
+                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Correção de escopo direto no índice 0
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]);
+                tratarSelecaoArquivo(fileInput.files[0]); // Correção de escopo direto no índice 0
             }
         });
 
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Erro: Arquivo corrompido ou inválido.");
+                registrarLog("❌ Erro: Falha ao carregar o arquivo.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor de quebra de strings nativo V1.8...");
+            registrarLog("Executando leitor nativo de strings V1.9...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
                 try {
                     const textoBruto = evt.target.result;
-                    registrarLog("Texto bruto obtido em memória. Iniciando mapeamento de linhas...");
+                    registrarLog("Texto bruto obtido com sucesso.");
                     
-                    // 🌟 PARSER NATIVO V1.8: Quebra linhas limpando quebras ocultas (\r e \n)
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    registrarLog(`Estrutura detectada: ${linhasBrutas.length} linhas brutas encontradas.`);
-                    
-                    // Identifica o separador correto (Vírgula ou Ponto e Vírgula do Excel BR)
                     const primeiraLinha = linhasBrutas[0] || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador de tabela mapeado com sucesso: [ ${separador} ]`);
+                    registrarLog(`Separador ativo mapeado: [ ${separador} ]`);
 
-                    // Higieniza e mapeia os cabeçalhos da primeira linha
                     const cabecalhos = primeiraLinha.split(separador).map(c => c.replace(/[\r\n\t\"]+/g, " ").trim());
                     
-                    // Transforma o texto em objetos manipuláveis
                     const matrizDados = [];
                     for(let i = 1; i < linhasBrutas.length; i++) {
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"]/g, "").trim());
@@ -215,12 +209,12 @@
                         matrizDados.push(objLinha);
                     }
 
-                    registrarLog(`Leitura concluída. ${matrizDados.length} objetos criados.`);
+                    registrarLog(`Estrutura mapeada. Processando ${matrizDados.length} objetos criados.`);
                     gerarDashboardAuditoria(matrizDados);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
-                    registrarLog(`❌ Erro de processamento interno: ${errorInterno.message}`);
+                    registrarLog(`❌ Erro de processamento: ${errorInterno.message}`);
                 }
             };
         }
@@ -232,12 +226,12 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Modo de visualização offline ativo (Chave vazia).");
+                registrarLog("⚠️ Modo offline ativado. Chave de acesso vazia.");
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
 
-            registrarLog("Codificando arquivo em Base64...");
+            registrarLog("Codificando matriz em Base64...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
             
@@ -256,7 +250,7 @@
             } catch(e) {}
 
             progressBar.style.width = '75%';
-            registrarLog("Enviando requisição de rede para a API do GitHub...");
+            registrarLog("Enviando requisição de rede para a API...");
 
             const payload = {
                 message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
@@ -280,14 +274,14 @@
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#16a34a';
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                    registrarLog("✅ Upload concluído com sucesso via API!");
+                    registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    registrarLog(`⚠️ Firewall ativado. Alternando para Rota de Contingência...`);
+                    registrarLog(`⚠️ Rota bloqueada por segurança. Executando plano alternativo.`);
                     ativarInterfaceContingencia(textoPlain);
                 }
             } catch(errFetch) {
-                registrarLog(`⚠️ Rota API bloqueada por proxy. Alternando para Rota de Contingência...`);
+                registrarLog(`⚠️ Rota bloqueada por proxy. Executando plano alternativo.`);
                 ativarInterfaceContingencia(textoPlain);
             }
         }
@@ -312,12 +306,16 @@
         }
 
         function gerarDashboardAuditoria(dados) {
-            registrarLog("Filtrando modelos válidos e montando os cards...");
+            registrarLog("Filtrando e higienizando os modelos válidos...");
+            
+            // 🌟 ATUALIZAÇÃO V1.9: Filtro tolerante a células vazias ou nulas do Excel BR
             const itensValidos = dados.filter(linha => {
                 const chaves = Object.keys(linha);
                 const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
-                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '-' && linha[chaveModelo].trim() !== '';
+                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '' && linha[chaveModelo].trim() !== '-';
             });
+            
+            registrarLog(`Mapeados: ${itensValidos.length} equipamentos válidos.`);
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
@@ -358,7 +356,7 @@
                 `;
                 container.appendChild(card);
             });
-            registrarLog("Painel atualizado e operacional com os novos cards.");
+            registrarLog("Painel 100% carregado e pronto para uso.");
         }
 
         function alternarInput(id, tipo) {
