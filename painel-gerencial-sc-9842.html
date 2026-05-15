@@ -104,7 +104,7 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor de agrupamento V2.3 carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Corretor de Escopo V2.4 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -125,8 +125,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.3 -->
-    <div class="marcador-versao" id="txtVersao">V2.3</div>
+    <!-- Versão Atualizada para V2.4 -->
+    <div class="marcador-versao" id="txtVersao">V2.4</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -162,53 +162,53 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
+        // 🌟 CORREÇÃO V2.4: Extrai estritamente o arquivo bruto [0] no ato do evento do mouse
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files);
+                tratarSelecaoArquivo(e.dataTransfer.files[0]);
             }
         });
 
+        // 🌟 CORREÇÃO V2.4: Extrai estritamente o arquivo bruto [0] no ato da seleção do clique
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files);
+                tratarSelecaoArquivo(fileInput.files[0]);
             }
         });
 
         function tratarSelecaoArquivo(arquivoObjeto) {
             if (!arquivoObjeto || !arquivoObjeto.name) {
-                registrarLog("❌ Erro: Falha ao carregar o arquivo.");
+                registrarLog("❌ Erro: Falha ao isolar arquivo físico.");
                 return;
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando leitor V2.3 com consolidação de colunas...");
+            registrarLog("Executando leitor V2.4 com índices físicos fixos...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
                 try {
                     const textoBruto = evt.target.result;
-                    registrarLog("Texto bruto em memória.");
+                    registrarLog("Texto bruto obtido com sucesso.");
                     
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    const primeiraLinha = linhasBrutas || '';
+                    const primeiraLinha = linhasBrutas[0] || '';
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador ativo: [ ${separador} ]`);
+                    registrarLog(`Separador ativo mapeado: [ ${separador} ]`);
 
-                    // Varre para achar a linha correta de cabeçalho
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 2 && colTeste.toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
                             break;
                         }
                     }
 
-                    // Objeto dicionário para agrupar modelos por firmware único
                     const dicionarioFirmwares = {};
 
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
@@ -216,12 +216,11 @@
                         
                         if(colunas.length < 6) continue;
 
-                        const fabricante = colunas.trim() || 'Claro S.A.';
-                        const modelo = colunas.trim();     
-                        const firmware = colunas.trim(); 
+                        const fabricante = colunas[0].trim() || 'Claro S.A.';
+                        const modelo = colunas[5].trim();     
+                        const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado'; 
 
-                        if(modelo && modelo !== '-' && firmware && firmware !== '-') {
-                            // Chave unificada para agrupar fabricante + firmware idênticos
+                        if(modelo && modelo !== '-' && firmware && firmware !== '-' && firmware !== '') {
                             const chaveGrupo = `${fabricante.toUpperCase()}_${firmware.toLowerCase()}`;
 
                             if(!dicionarioFirmwares[chaveGrupo]) {
@@ -231,22 +230,20 @@
                                     modelos: []
                                 };
                             }
-                            // Adiciona o modelo na lista se não estiver repetido
                             if(!dicionarioFirmwares[chaveGrupo].modelos.includes(modelo)){
                                 dicionarioFirmwares[chaveGrupo].modelos.push(modelo);
                             }
                         }
                     }
 
-                    // Converte o dicionário de volta para uma matriz limpa de grupos
                     const matrizAgrupada = Object.values(dicionarioFirmwares);
-                    registrarLog(`Agrupamento concluído: ${matrizAgrupada.length} firmwares distintos localizados.`);
+                    registrarLog(`Processamento concluído: ${matrizAgrupada.length} firmwares distintos mapeados.`);
                     
                     gerarCardsNaTelaAgrupados(matrizAgrupada);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
-                    registrarLog(`❌ Erro de processamento interno: ${errorInterno.message}`);
+                    registrarLog("❌ Erro de processamento: " + errorInterno.message);
                 }
             };
         }
@@ -258,12 +255,12 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Modo de contingência manual ativo.");
+                registrarLog("⚠️ Rota API ignorada. Chave de acesso em branco.");
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
 
-            registrarLog("Codificando para o GitHub...");
+            registrarLog("Codificando matriz em Base64...");
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
             
@@ -271,6 +268,7 @@
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
             
             progressBar.style.width = '50%';
+
             let shaExistente = null;
             try {
                 const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
@@ -333,7 +331,6 @@
             });
         }
 
-        // 🌟 ATUALIZAÇÃO V2.3: Injeção de cards unificados agrupados por firmware
         function gerarCardsNaTelaAgrupados(itensGrupos) {
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
@@ -348,7 +345,6 @@
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
 
-                // Transforma a lista de modelos em texto amigável separado por barras
                 const modelosTexto = grupo.modelos.join(" / ");
 
                 card.innerHTML = `
