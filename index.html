@@ -70,19 +70,20 @@
     </header>
 
     <div class="busca-container">
-        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite o fabricante, firmware, serviço (ex: VIPSIP) ou qualquer modelo (ex: 3825)...">
+        <input type="text" id="inputBusca" class="busca-input" placeholder="🔍 Digite a marca, modelo ou serviço (ex: VIPLINE, Cisco, 1841)...">
     </div>
 
     <main class="grid-equipamentos" id="listaEquipamentos">
-        <div class="status-carregando">Sincronizando matriz de engenharia regional...</div>
+        <div class="status-carregando">Sincronizando matriz de engenharia com os smartphones...</div>
     </main>
 
-    <div class="marcador-versao" id="txtVersao">V2.5</div>
+    <!-- Versão Incrementada para V2.6 -->
+    <div class="marcador-versao" id="txtVersao">V2.6</div>
 
     <script>
         let dadosAgrupadosCampo = [];
 
-        // ALERTA: Insira o seu usuário e nome do repositório para ativar o relógio do commit
+        // ALERTA OBRIGATÓRIO: Ajuste para as suas credenciais reais do GitHub
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -92,11 +93,10 @@
                 const textoCSV = await resposta.text();
                 processarCSVCampoNativo(textoCSV);
             } catch (erro) {
-                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Arquivo 'engenharia.csv' não localizado no repositório. Atualize via Painel Gerencial.</div>`;
+                document.getElementById('listaEquipamentos').innerHTML = `<div class="status-carregando">Erro: Matriz 'engenharia.csv' não sincronizada na nuvem. Execute a gravação manual no painel ADM.</div>`;
             }
         }
 
-        // MOTOR V2.5: Leitura por posições com Forward Fill (Memória de Fabricante) integrado
         function processarCSVCampoNativo(texto) {
             const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
             if(linhasBrutas.length <= 1) return;
@@ -127,7 +127,7 @@
                 const pabx = colunas[3];
                 const dados = colunas[4];
                 const modelo = colunas[5];
-                const firmware = colunas[8] ? colunas[8].trim() : '';
+                const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado';
 
                 if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
                     ultimoFabricanteValido = fabricanteBruto;
@@ -164,6 +164,11 @@
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = '';
 
+            if(lista.length === 0) {
+                container.innerHTML = '<div class="status-carregando">Nenhum equipamento localizado para esta pesquisa.</div>';
+                return;
+            }
+
             lista.forEach(grupo => {
                 const fabPasta = grupo.fabricante.toLowerCase().replace(/ /g, '_');
                 const modelosTexto = grupo.modelos.join(" / ");
@@ -199,27 +204,51 @@
             });
         }
 
+        // 🌟 ATUALIZAÇÃO CRÍTICA V2.6: Filtro de busca reativo direto na matriz de memória
         document.getElementById('inputBusca').addEventListener('input', function(e) {
-            const termo = e.target.value.toLowerCase();
-            const cards = document.querySelectorAll('.card-equipamento');
-            cards.forEach(card => {
-                card.style.display = card.innerText.toLowerCase().includes(termo) ? 'block' : 'none';
+            const termo = e.target.value.toLowerCase().trim();
+            
+            if (termo === "") {
+                renderizarCardsCampoAgrupados(dadosAgrupadosCampo);
+                return;
+            }
+
+            // Varre o array de objetos mapeando correspondências lógicas profundas
+            const dadosFiltrados = dadosAgrupadosCampo.filter(grupo => {
+                const matchFabricante = grupo.fabricante.toLowerCase().includes(termo);
+                const matchFirmware = grupo.firmware.toLowerCase().includes(termo);
+                const matchModelos = grupo.modelos.some(mod => mod.toLowerCase().includes(termo));
+                
+                // Mapeia se o termo coincide com tags de serviço
+                let matchServicos = false;
+                if (termo === 'vipline' && grupo.servicos.vipline) matchServicos = true;
+                if (termo === 'vipsip' && grupo.servicos.vipsip) matchServicos = true;
+                if ((termo === 'pabx' || termo === 'pabx virtual') && grupo.servicos.pabx) matchServicos = true;
+                if (termo === 'dados' && grupo.servicos.dados) matchServicos = true;
+
+                return matchFabricante || matchFirmware || matchModelos || matchServicos;
             });
+
+            renderizarCardsCampoAgrupados(dadosFiltrados);
         });
 
         async function buscarUltimaAtualizacao() {
             try {
-                const urlCommits = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
+                const urlCommits = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
                 const res = await fetch(urlCommits);
                 if(res.ok) {
-                    const dados = await res.json();
-                    if(dados && dados.length > 0) {
-                        const dataCommit = new Date(dados.commit.committer.date);
-                        const dia = String(dataCommit.getDate()).padStart(2, '0');
-                        const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
-                        const horas = String(dataCommit.getHours()).padStart(2, '0');
-                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
-                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
+                    const urlCommitsAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/commits?path=engenharia.csv&per_page=1`;
+                    const resAPI = await fetch(urlCommitsAPI);
+                    if(resAPI.ok) {
+                        const dados = await resAPI.json();
+                        if(dados && dados.length > 0) {
+                            const dataCommit = new Date(dados.commit.committer.date);
+                            const dia = String(dataCommit.getDate()).padStart(2, '0');
+                            const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
+                            const horas = String(dataCommit.getHours()).padStart(2, '0');
+                            const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
+                            document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
+                        }
                     }
                 }
             } catch(e) {}
