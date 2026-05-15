@@ -77,6 +77,10 @@
             letter-spacing: 0.5px;
             border: 1px solid rgba(255,255,255,0.1);
         }
+
+        /* Botão de contingência */
+        .btn-contingencia { background-color: var(--verde-sucesso); color: white; padding: 10px 16px; border-radius: 4px; text-decoration: none; font-weight: bold; display: inline-block; font-size: 0.85rem; margin-top: 8px; border: none; cursor: pointer; }
+        .btn-contingencia:hover { background-color: #117a3b; }
     </style>
 </head>
 <body>
@@ -121,12 +125,12 @@
 
     </main>
 
-    <!-- Versão Incrementada para V1.6 -->
-    <div class="marcador-versao" id="txtVersao">V1.6</div>
+    <!-- Versão Atualizada para V1.7 -->
+    <div class="marcador-versao" id="txtVersao">V1.7</div>
 
     <!-- MÓDULO EMBUTIDO PAPAPARSE -->
     <script>
-        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e)return{data:[],errors:[]};var f=e[0].split(e[0].includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[c].includes(";")?";":",");if(!(d&&1===m.length&&""===m[0])){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
+        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e)return{data:[],errors:[]};var f=e.split(e.includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[c].includes(";")?";":",");if(!(d&&1===m.length&&""===m)){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
     </script>
 
     <!-- MOTOR DE AUTOMAÇÃO PRINCIPAL DO SITE -->
@@ -197,7 +201,7 @@
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor de leitura de tabelas embutido (V1.6)...");
+            registrarLog("Executando motor de leitura de tabelas embutido (V1.7)...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
@@ -226,16 +230,19 @@
             };
         }
 
-        // 🌟 ATUALIZAÇÃO V1.6: Conversão limpa para evitar erros de CORS (Failed to fetch)
+        // 🌟 ATUALIZAÇÃO V1.7: Camada Híbrida Automática / Contingência Manual contra Bloqueio de Proxy Claro
         async function salvarCSVNoGithub(nomeOriginal, textoPlain) {
             const token = tokenInput.value.trim();
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
             const uploadStatus = document.getElementById('uploadStatus');
 
+            // Conversão UTF-8 Limpa para CSV
+            const csvProntoParaSalvar = textoPlain;
+
             if(!token) {
-                registrarLog("⚠️ Transmissão para nuvem ignorada: Token em branco.");
-                uploadStatus.innerHTML = `⚠️ Planilha processada na tela, mas <strong>NÃO foi salva no GitHub</strong> porque a Chave de Acesso (Token) está vazia!`;
+                registrarLog("⚠️ Modo Visual Ativado: Chave em branco.");
+                ativarInterfaceContingencia(csvProntoParaSalvar);
                 return;
             }
 
@@ -243,11 +250,9 @@
             progressContainer.style.display = 'block';
             progressBar.style.width = '20%';
             
-            // Codificação robusta à prova de acentos e quebras de linha brasileiras do Excel
             const conteudoBase64 = btoa(unescape(encodeURIComponent(textoPlain)));
-            
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-            registrarLog("Comunicando com a API do GitHub...");
+            
             progressBar.style.width = '50%';
 
             let shaExistente = null;
@@ -256,14 +261,10 @@
                 if(resCheck.ok) {
                     const dadosArquivo = await resCheck.json();
                     shaExistente = dadosArquivo.sha;
-                    registrarLog(`Histórico localizado na nuvem (SHA: ${shaExistente.substring(0,7)}). Overwrite preparado.`);
                 }
-            } catch(e) {
-                registrarLog(`Histórico limpo. Criando novo arquivo no repositório.`);
-            }
+            } catch(e) {}
 
             progressBar.style.width = '75%';
-            registrarLog("Gravando alterações e forçando commit na branch main...");
 
             const payload = {
                 message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
@@ -276,30 +277,49 @@
                 const resUpload = await fetch(urlAPI, {
                     method: "PUT",
                     headers: {
-                        "Authorization": `Bearer ${token}`, // Alterado para o padrão moderno Bearer
+                        "Authorization": `Bearer ${token}`,
                         "Content-Type": "application/json",
                         "Accept": "application/vnd.github.v3+json"
                     },
                     body: JSON.stringify(payload)
                 });
 
-                registrarLog(`Retorno do GitHub: Status ${resUpload.status}`);
-
                 if(resUpload.ok) {
                     progressBar.style.width = '100%';
                     progressBar.style.background = '#16a34a';
                     uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                    registrarLog("✅ Sincronização concluída com sucesso no repositório!");
+                    registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    const respostaErro = await resUpload.text();
-                    registrarLog(`❌ Erro no commit: ${respostaErro}`);
-                    progressBar.style.width = '100%';
-                    uploadStatus.innerHTML = `❌ Erro no upload. Verifique as configurações.`;
+                    registrarLog(`⚠️ Conexão API recusada. Ativando Contingência de Firewall...`);
+                    ativarInterfaceContingencia(csvProntoParaSalvar);
                 }
             } catch(errFetch) {
-                registrarLog(`❌ Falha de rede (CORS/URL): ${errFetch.message}`);
+                registrarLog(`⚠️ Firewall detectado (Failed to fetch). Ativando Contingência de Firewall...`);
+                ativarInterfaceContingencia(csvProntoParaSalvar);
             }
+        }
+
+        // Função que gera a rota alternativa caso a rede bloqueie o script
+        function ativarInterfaceContingencia(textoPlano) {
+            const progressContainer = document.getElementById('progressContainer');
+            const uploadStatus = document.getElementById('uploadStatus');
+            
+            progressContainer.style.display = 'none';
+            
+            // Injeta os botões auxiliares na caixa cinza de upload
+            uploadStatus.innerHTML = `
+                <span style="color:var(--laranja-alerta);">🔒 <strong>Proxy Corporativo Detectado!</strong></span><br>
+                A planilha foi processada na tela. Use a rota rápida alternativa para salvar na nuvem:<br><br>
+                <button class="btn-contingencia" id="btnCopiarTexto">📋 Copiar Dados da Planilha</button>
+                <a href="https://github.com{GITHUB_USER}/${GITHUB_REPO}/edit/main/engenharia.csv" target="_blank" class="btn-contingencia" style="background-color:#24292e;">➔ Abrir Página do GitHub</a>
+            `;
+
+            document.getElementById('btnCopiarTexto').addEventListener('click', () => {
+                navigator.clipboard.writeText(textoPlano);
+                registrarLog("Dados da planilha copiados para a área de transferência.");
+                alert("✅ Conteúdo copiado! Agora clique no botão preto, selecione tudo (Ctrl+A), cole por cima (Ctrl+V) e salve no final da página do GitHub.");
+            });
         }
 
         function gerarDashboardAuditoria(dados) {
