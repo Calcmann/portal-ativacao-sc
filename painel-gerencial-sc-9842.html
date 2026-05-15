@@ -104,7 +104,7 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Corretor de Escopo V2.4 carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Reconhecimento de Fabricante V2.5 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -125,8 +125,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.4 -->
-    <div class="marcador-versao" id="txtVersao">V2.4</div>
+    <!-- Versão Atualizada para V2.5 -->
+    <div class="marcador-versao" id="txtVersao">V2.5</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -162,7 +162,6 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
-        // 🌟 CORREÇÃO V2.4: Extrai estritamente o arquivo bruto [0] no ato do evento do mouse
         dropzone.addEventListener('drop', (e) => {
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
@@ -171,7 +170,6 @@
             }
         });
 
-        // 🌟 CORREÇÃO V2.4: Extrai estritamente o arquivo bruto [0] no ato da seleção do clique
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
@@ -186,7 +184,7 @@
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando leitor V2.4 com índices físicos fixos...");
+            registrarLog("Executando leitor V2.5 com memória de fabricante...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
@@ -210,22 +208,30 @@
                     }
 
                     const dicionarioFirmwares = {};
+                    
+                    // 🌟 VARIAVEL DE MEMÓRIA V2.5: Guarda o último fabricante válido encontrado
+                    let ultimoFabricanteValido = "Claro S.A.";
 
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
                         const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                         
                         if(colunas.length < 6) continue;
 
-                        const fabricante = colunas[0].trim() || 'Claro S.A.';
-                        const modelo = colunas[5].trim();     
-                        const firmware = colunas[8] ? colunas[8].trim() : 'Não especificado'; 
+                        let fabricanteBruto = colunas[0];
+                        const modelo = colunas[5];     
+                        const firmware = colunas[8] ? colunas[8].trim() : ''; 
+
+                        // Lógica de Forward Fill: Atualiza a memória se houver um texto novo, ou usa o anterior se estiver vazio
+                        if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
+                            ultimoFabricanteValido = fabricanteBruto;
+                        }
 
                         if(modelo && modelo !== '-' && firmware && firmware !== '-' && firmware !== '') {
-                            const chaveGrupo = `${fabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+                            const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
 
                             if(!dicionarioFirmwares[chaveGrupo]) {
                                 dicionarioFirmwares[chaveGrupo] = {
-                                    fabricante: fabricante,
+                                    fabricante: ultimoFabricanteValido,
                                     firmware: firmware,
                                     modelos: []
                                 };
