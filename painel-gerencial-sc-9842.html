@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Painel Administrativo - Ativação - SC</title>
+    <!-- Processador nativo de planilhas CSV no navegador -->
     <script src="https://cloudflare.com"></script>
     <style>
         :root {
@@ -65,7 +66,6 @@
 <body>
 
     <header>
-        <!-- Nome ajustado conforme a solicitação da gerência -->
         <h1>Ativação - <span>SC</span></h1>
         <div class="auth-box">
             <input type="password" id="inputToken" class="token-input" placeholder="Chave de Acesso GitHub (Token)">
@@ -122,20 +122,27 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
+        // Evento Drop corrigido para ler o item bruto
         dropzone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
-            if(files.length) processarPlanilha(files);
+            if(files.length > 0) processarPlanilha(files[0]);
         });
 
+        // Evento Change corrigido para ler o item bruto
         fileInput.addEventListener('change', (e) => {
-            if(fileInput.files.length) processarPlanilha(fileInput.files);
+            if(fileInput.files.length > 0) processarPlanilha(fileInput.files[0]);
         });
 
-        function processarPlanilha(file) {
-            document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${file.name}</strong>`;
+        function processarPlanilha(arquivoAlvo) {
+            if (!arquivoAlvo || !arquivoAlvo.name) {
+                document.getElementById('uploadStatus').innerHTML = `⚠️ Erro ao ler o arquivo. Tente selecionar pelo botão.`;
+                return;
+            }
+
+            document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoAlvo.name}</strong>`;
             
-            Papa.parse(file, {
+            Papa.parse(arquivoAlvo, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
