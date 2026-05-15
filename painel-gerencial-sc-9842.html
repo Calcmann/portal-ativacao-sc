@@ -121,12 +121,12 @@
 
     </main>
 
-    <!-- Versão Atualizada para V1.5 -->
-    <div class="marcador-versao" id="txtVersao">V1.5</div>
+    <!-- Versão Incrementada para V1.6 -->
+    <div class="marcador-versao" id="txtVersao">V1.6</div>
 
-    <!-- 🌟 MINI-MÓDULO EMBUTIDO PAPAPARSE PARA EVITAR BLOQUEIOS DE REDE DA CLARO -->
+    <!-- MÓDULO EMBUTIDO PAPAPARSE -->
     <script>
-        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e[0])return{data:[],errors:[]};var f=e[0].split(e[0].includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[0].includes(";")?";":",");if(!(d&&1===m.length&&""===m[0])){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
+        (function(g){"function"===typeof define&&define.amd?define(["papa"],g):"object"===typeof exports?module.exports=g():window.Papa=g()})(function(){var g=function(a,b){b=b||{};var c=b.header,d=b.skipEmptyLines,e=a.split(/\r\n|\r|\n/);if(0===e.length||""===e)return{data:[],errors:[]};var f=e[0].split(e[0].includes(";")?";":",");if(c)var h=f.map(function(k){return b.transformHeader?b.transformHeader(k):k.trim()});var l=[];for(c=1;c<e.length;c++){var m=e[c].split(e[c].includes(";")?";":",");if(!(d&&1===m.length&&""===m[0])){var p={};h.forEach(function(k,n){p[k]=m[n]?m[n].trim():""});l.push(p)}}return{data:l,errors:[]}};return{parse:g}});
     </script>
 
     <!-- MOTOR DE AUTOMAÇÃO PRINCIPAL DO SITE -->
@@ -170,14 +170,14 @@
             registrarLog("Arquivo solto via Drag & Drop.");
             const dt = e.dataTransfer;
             if(dt && dt.files && dt.files.length > 0) {
-                extrairEProcessar(dt.files[0]); // Pega estritamente o arquivo bruto do índice 0
+                extrairEProcessar(dt.files[0]); // Captura o arquivo de forma direta
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo selecionado via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                extrairEProcessar(fileInput.files[0]); // Pega estritamente o arquivo bruto do índice 0
+                extrairEProcessar(fileInput.files[0]); // Captura o arquivo de forma direta
             }
         });
 
@@ -197,9 +197,8 @@
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor de leitura de tabelas embutido (V1.5)...");
+            registrarLog("Executando motor de leitura de tabelas embutido (V1.6)...");
             
-            // FileReader lê o texto bruto para o PapaParse embutido processar localmente
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
             leitorTexto.onload = function(evt) {
@@ -218,15 +217,17 @@
                     registrarLog(`Leitura local concluída. ${resultado.data.length} linhas processadas.`);
                     gerarDashboardAuditoria(resultado.data);
                     
+                    // Dispara o upload enviando o texto bruto para conversão segura
+                    salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
+
                 } catch(errorInterno) {
                     registrarLog(`❌ Erro interno de processamento de colunas: ${errorInterno.message}`);
                 }
             };
-
-            salvarCSVNoGithub(arquivoObjeto);
         }
 
-        async function salvarCSVNoGithub(arquivo) {
+        // 🌟 ATUALIZAÇÃO V1.6: Conversão limpa para evitar erros de CORS (Failed to fetch)
+        async function salvarCSVNoGithub(nomeOriginal, textoPlain) {
             const token = tokenInput.value.trim();
             const progressContainer = document.getElementById('progressContainer');
             const progressBar = document.getElementById('progressBar');
@@ -238,69 +239,67 @@
                 return;
             }
 
-            registrarLog("Iniciando conversão binária para upload...");
+            registrarLog("Iniciando codificação de segurança para a API...");
             progressContainer.style.display = 'block';
-            progressBar.style.width = '15%';
+            progressBar.style.width = '20%';
+            
+            // Codificação robusta à prova de acentos e quebras de linha brasileiras do Excel
+            const conteudoBase64 = btoa(unescape(encodeURIComponent(textoPlain)));
             
             const urlAPI = `https://github.com{GITHUB_USER}/${GITHUB_REPO}/contents/engenharia.csv`;
-            const reader = new FileReader();
-            
-            reader.readAsDataURL(arquivo);
-            reader.onload = async () => {
-                const conteudoBase64 = reader.result.split(',')[1]; // Garante apenas o binário Base64 puro
-                registrarLog("Conversão Base64 concluída. Comunicando com a API do GitHub...");
-                progressBar.style.width = '50%';
+            registrarLog("Comunicando com a API do GitHub...");
+            progressBar.style.width = '50%';
 
-                let shaExistente = null;
-                try {
-                    const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
-                    if(resCheck.ok) {
-                        const dadosArquivo = await resCheck.json();
-                        shaExistente = dadosArquivo.sha;
-                        registrarLog(`Histórico localizado na nuvem (SHA: ${shaExistente.substring(0,7)}). Overwrite preparado.`);
-                    }
-                } catch(e) {
-                    registrarLog(`Histórico limpo. Criando novo arquivo no repositório.`);
+            let shaExistente = null;
+            try {
+                const resCheck = await fetch(urlAPI, { headers: { "Authorization": `token ${token}` } });
+                if(resCheck.ok) {
+                    const dadosArquivo = await resCheck.json();
+                    shaExistente = dadosArquivo.sha;
+                    registrarLog(`Histórico localizado na nuvem (SHA: ${shaExistente.substring(0,7)}). Overwrite preparado.`);
                 }
+            } catch(e) {
+                registrarLog(`Histórico limpo. Criando novo arquivo no repositório.`);
+            }
 
-                progressBar.style.width = '75%';
-                registrarLog("Gravando alterações e forçando commit na branch main...");
+            progressBar.style.width = '75%';
+            registrarLog("Gravando alterações e forçando commit na branch main...");
 
-                const payload = {
-                    message: `Atualização de Matriz de Engenharia: ${arquivo.name}`,
-                    content: conteudoBase64,
-                    branch: "main"
-                };
-                if(shaExistente) payload.sha = shaExistente;
-
-                try {
-                    const resUpload = await fetch(urlAPI, {
-                        method: "PUT",
-                        headers: {
-                            "Authorization": `token ${token}`,
-                            "Content-Type": "application/json"
-                        },
-                        body: JSON.stringify(payload)
-                    });
-
-                    registrarLog(`Retorno do GitHub: Status ${resUpload.status}`);
-
-                    if(resUpload.ok) {
-                        progressBar.style.width = '100%';
-                        progressBar.style.background = '#16a34a';
-                        uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
-                        registrarLog("✅ Sincronização concluída com sucesso no repositório!");
-                        setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
-                    } else {
-                        const respostaErro = await resUpload.text();
-                        registrarLog(`❌ Erro no commit: ${respostaErro}`);
-                        progressBar.style.width = '100%';
-                        uploadStatus.innerHTML = `❌ Erro no upload. Verifique as configurações.`;
-                    }
-                } catch(errFetch) {
-                    registrarLog(`❌ Falha de rede: ${errFetch.message}`);
-                }
+            const payload = {
+                message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
+                content: conteudoBase64,
+                branch: "main"
             };
+            if(shaExistente) payload.sha = shaExistente;
+
+            try {
+                const resUpload = await fetch(urlAPI, {
+                    method: "PUT",
+                    headers: {
+                        "Authorization": `Bearer ${token}`, // Alterado para o padrão moderno Bearer
+                        "Content-Type": "application/json",
+                        "Accept": "application/vnd.github.v3+json"
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                registrarLog(`Retorno do GitHub: Status ${resUpload.status}`);
+
+                if(resUpload.ok) {
+                    progressBar.style.width = '100%';
+                    progressBar.style.background = '#16a34a';
+                    uploadStatus.innerHTML = `✅ <strong>Matriz salva com sucesso no GitHub!</strong>`;
+                    registrarLog("✅ Sincronização concluída com sucesso no repositório!");
+                    setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
+                } else {
+                    const respostaErro = await resUpload.text();
+                    registrarLog(`❌ Erro no commit: ${respostaErro}`);
+                    progressBar.style.width = '100%';
+                    uploadStatus.innerHTML = `❌ Erro no upload. Verifique as configurações.`;
+                }
+            } catch(errFetch) {
+                registrarLog(`❌ Falha de rede (CORS/URL): ${errFetch.message}`);
+            }
         }
 
         function gerarDashboardAuditoria(dados) {
@@ -362,12 +361,6 @@
             }
         }
 
-        document.addEventListener("click", function(e) {
-            if(e.target && e.target.className === 'btn-salvar') {
-                // Mantém o comportamento visual de limpeza de cards simulado
-            }
-        });
-
         function salvarAtualizacao(id) {
             const card = document.getElementById(`card-${id}`);
             card.style.opacity = '0.3';
@@ -389,8 +382,8 @@
                         const dia = String(dataCommit.getDate()).padStart(2, '0');
                         const mes = String(dataCommit.getMonth() + 1).padStart(2, '0');
                         const horas = String(dataCommit.getHours()).padStart(2, '0');
-                        const minutes = String(dataCommit.getMinutes()).padStart(2, '0');
-                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutes}`;
+                        const minutos = String(dataCommit.getMinutes()).padStart(2, '0');
+                        document.getElementById('txtVersao').innerText = `Atualizado em: ${dia}/${mes} às ${horas}:${minutos}`;
                     }
                 }
             } catch(e) {}
