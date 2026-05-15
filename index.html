@@ -60,7 +60,6 @@
         .btn-download-desktop { display: inline-flex; align-items: center; gap: 6px; background-color: var(--texto-principal); color: white; text-decoration: none; padding: 8px 12px; border-radius: 4px; font-weight: 600; font-size: 0.8rem; transition: background 0.15s; }
         .btn-download-desktop:hover { background-color: #000000; }
 
-        .status-carregando { padding: 40px; text-align: center; color: var(--texto-mutado); font-weight: 500; }
         .marcador-versao { position: fixed; bottom: 16px; right: 16px; background-color: var(--texto-principal); color: white; font-size: 0.75rem; font-weight: 700; padding: 6px 12px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.15); z-index: 9999; }
     </style>
 </head>
@@ -92,15 +91,15 @@
             <div class="indicadores-grid">
                 <div class="card-indicador">
                     <h4>Firmwares Únicos</h4>
-                    <p id="txtTotal">43</p>
+                    <p id="txtTotal">17</p>
                 </div>
                 <div class="card-indicador" style="border-left: 4px solid var(--claro-vermelho);">
                     <h4>Fabricantes Ativos</h4>
-                    <p id="txtFabTotal">6</p>
+                    <p id="txtFabTotal">5</p>
                 </div>
                 <div class="card-indicador">
                     <h4>Modelos Mapeados</h4>
-                    <p id="txtModTotal">51</p>
+                    <p id="txtModTotal">25</p>
                 </div>
             </div>
 
@@ -120,18 +119,18 @@
                         </tr>
                     </thead>
                     <tbody id="corpoTabela">
-                        <!-- Os dados serão injetados aqui de forma instantânea e imutável -->
+                        <!-- Carga instantânea e limpa via script -->
                     </tbody>
                 </table>
             </div>
         </section>
     </div>
 
-    <!-- Versão Consolidada V3.7 -->
-    <div class="marcador-versao" id="txtVersao">V3.7</div>
+    <!-- Versão Atualizada para V3.8 -->
+    <div class="marcador-versao" id="txtVersao">V3.8</div>
 
     <script>
-        // 🌟 BANCO DE DADOS EMBUTIDO V3.7: 43 Firmwares reais ordenados de forma alfabética estrita por Fabricante
+        // 🌟 MATRIZ REAL V3.8: Apenas registros extraídos das 3 páginas do PDF da Engenharia
         const dadosGlobaisBase = [
             { fabricante: "ALIGERA", firmware: "AG_v2.4.11.bin", modelos: ["AG2002", "AG2004", "AG2008"], vipline: true, vipsip: true, pabx: false, dados: false },
             { fabricante: "ALIGERA", firmware: "AG_v3.1.2.cc", modelos: ["AG3200", "AG3400"], vipline: true, vipsip: false, pabx: true, dados: false },
@@ -152,24 +151,11 @@
             { fabricante: "HUAWEI", firmware: "AR8000-V300R021C00SPC300.cc", modelos: ["AR8140", "AR8000"], vipline: true, vipsip: true, pabx: true, dados: true }
         ];
 
-        // Preenche de forma complementar com variações sequenciais simuladas para fechar o grid operacional exato de 43 registros mapeados no PDF da Claro S.A.
-        for(let i=1; i<=26; i++) {
-            dadosGlobaisBase.push({
-                fabricante: i % 2 === 0 ? "HUAWEI" : "CISCO",
-                firmware: `v_image_homologada_rev50_0${i}.bin`,
-                modelos: [`Mod_Custom_SC_${i}`],
-                vipline: i % 3 === 0,
-                vipsip: i % 2 === 0,
-                pabx: i % 4 === 0,
-                dados: true
-            });
-        }
-
-        // Ordenação alfabética estrita por Fabricante
+        // Força ordenação alfabética rigorosa por Fabricante
         dadosGlobaisBase.sort((a, b) => a.fabricante.localeCompare(b.fabricante, 'pt', { sensitivity: 'base' }));
 
         function inicializarConsole() {
-            // Mapeia fabricantes distintos para a barra lateral
+            // Mapeia fabricantes distintos para a barra lateral de filtros
             const fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
             const containerFab = document.getElementById('containerFiltroFabricante');
             containerFab.innerHTML = '';
@@ -245,7 +231,7 @@
 
         document.getElementById('inputBusca').addEventListener('input', filtrarDados);
         
-        // Executa a carga instantânea independente de rede externa
+        // Carga imediata
         inicializarConsole();
     </script>
 </body>
