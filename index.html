@@ -128,14 +128,13 @@
         </section>
     </div>
 
-    <!-- Versão Atualizada para V3.1 -->
-    <div class="marcador-versao" id="txtVersao">V3.1</div>
+    <div class="marcador-versao" id="txtVersao">V3.2</div>
 
     <script>
         let dadosGlobaisBase = [];
         let fabricantesDistintos = [];
 
-        // IMPORTANTE: Insira aqui as suas credenciais reais do repositório público
+        // Preencha com seus dados do repositório para o relógio funcionar
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -147,95 +146,98 @@
                 const textoPlanoCSV = await resposta.text();
                 processarMatrizCSV(textoPlanoCSV);
             } catch (e) {
-                console.error("Erro na requisição fetch: ", e);
-                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Conexão. Execute a gravação inicial no painel gerencial.</td></tr>`;
+                console.error("Erro no fetch: ", e);
+                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Conexão. Base de dados inacessível.</td></tr>`;
             }
         }
 
         function processarMatrizCSV(texto) {
-            console.log("Dados brutos recebidos da nuvem (" + texto.length + " caracteres).");
-            
-            const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-            if(linhasBrutas.length <= 1) {
-                console.warn("Arquivo vazio ou sem dados utilizáveis.");
-                return;
-            }
-
-            // 🌟 ATUALIZAÇÃO CRÍTICA V3.1: Detecção de separador corrigida na raiz da string bruta
-            const primeiraLinha = texto.split(/\r\n|\r|\n/)[0] || '';
-            const separador = primeiraLinha.includes(';') ? ';' : ',';
-            console.log("Separador lógico mapeado em campo: " + separador);
-
-            let indiceCabecalho = 0;
-            for(let i = 0; i < linhasBrutas.length; i++) {
-                const colTeste = linhasBrutas[i].split(separador);
-                if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
-                    indiceCabecalho = i;
-                    console.log("Linha de cabeçalho localizada na posição física: " + i);
-                    break;
-                }
-            }
-
-            const dicionarioAgrupamento = {};
-            let memoriaFabricante = "Claro S.A.";
-            let totalModelosContados = 0;
-
-            for(let i = indiceCabecalho + 1; i < linhasBrutas.length; i++) {
-                const colunas = linhasBrutas[i].split(separador).map(c => c.replace(/[\"']/g, "").trim());
-                if(colunas.length < 6) continue;
-
-                let fabricanteCelular = colunas[0];
-                const vipline = colunas[1];
-                const vipsip = colunas[2];
-                const pabx = colunas[3];
-                const dados = colunas[4];
-                const modelo = colunas[5];
-                const firmware = colunas[8] ? colunas[8].trim() : '';
-
-                if(fabricanteCelular && fabricanteCelular !== '-' && fabricanteCelular !== '') {
-                    memoriaFabricante = fabricanteCelular;
+            try {
+                const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+                if(linhasBrutas.length <= 1) {
+                    console.warn("Arquivo sem linhas de dados.");
+                    return;
                 }
 
-                if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
-                    totalModelosContados++;
-                    const chaveUnicaFirmware = `${memoriaFabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+                // Corrige detecção limpa do separador na primeira linha de texto bruto
+                const primeiraLinhaCompleta = texto.split(/\r\n|\r|\n/)[0] || '';
+                const separador = primeiraLinhaCompleta.includes(';') ? ';' : ',';
+                console.log("Separador V3.2: " + separador);
 
-                    if(!dicionarioAgrupamento[chaveUnicaFirmware]) {
-                        dicionarioAgrupamento[chaveUnicaFirmware] = {
-                            fabricante: memoriaFabricante,
-                            firmware: firmware,
-                            modelos: [],
-                            vipline: false, vipsip: false, pabx: false, dados: false
-                        };
+                let indiceCabecalho = 0;
+                for(let i = 0; i < linhasBrutas.length; i++) {
+                    const colTeste = linhasBrutas[i].split(separador);
+                    if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        indiceCabecalho = i;
+                        break;
+                    }
+                }
+
+                const dicionarioAgrupamento = {};
+                let memoriaFabricante = "Claro S.A.";
+                let totalModelosContados = 0;
+
+                for(let i = indiceCabecalho + 1; i < linhasBrutas.length; i++) {
+                    const colunas = linhasBrutas[i].split(separador).map(c => c.replace(/[\"']/g, "").trim());
+                    if(colunas.length < 6) continue;
+
+                    let fabricanteCelular = colunas[0];
+                    const vipline = colunas[1];
+                    const vipsip = colunas[2];
+                    const pabx = colunas[3];
+                    const dados = colunas[4];
+                    const modelo = colunas[5];
+                    const firmware = colunas[8] ? colunas[8].trim() : '';
+
+                    if(fabricanteCelular && fabricanteCelular !== '-' && fabricanteCelular !== '') {
+                        memoriaFabricante = fabricanteCelular;
                     }
 
-                    if(!dicionarioAgrupamento[chaveUnicaFirmware].modelos.includes(modelo)) {
-                        dicionarioAgrupamento[chaveUnicaFirmware].modelos.push(modelo);
+                    if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
+                        totalModelosContados++;
+                        const chaveUnicaFirmware = `${memoriaFabricante.toUpperCase()}_${firmware.toLowerCase()}`;
+
+                        if(!dicionarioAgrupamento[chaveUnicaFirmware]) {
+                            dicionarioAgrupamento[chaveUnicaFirmware] = {
+                                fabricante: memoriaFabricante,
+                                firmware: firmware,
+                                modelos: [],
+                                vipline: false, vipsip: false, pabx: false, dados: false
+                            };
+                        }
+
+                        if(!dicionarioAgrupamento[chaveUnicaFirmware].modelos.includes(modelo)) {
+                            dicionarioAgrupamento[chaveUnicaFirmware].modelos.push(modelo);
+                        }
+
+                        // 🌟 CORREÇÃO V3.2: Atribuição direta limpa eliminando a variável oculta não declarada
+                        if(vipline === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipline = true;
+                        if(vipsip === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipsip = true;
+                        if(pabx === 'X') dicionarioAgrupamento[chaveUnicaFirmware].pabx = true;
+                        if(dados === 'X') dicionarioAgrupamento[chaveUnicaFirmware].dados = true;
                     }
-
-                    if(vipline === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipline = true;
-                    if(vipsip === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipsip = true;
-                    if(pabx === 'X') dicionarioAgrupamento[chaveUnicaFirmware].pabx = true;
-                    if(dados === 'X') dicionarioAgrupamento[chaveUnicaFirmware].dados = true;
                 }
+
+                dadosGlobaisBase = Object.values(dicionarioAgrupamento);
+                console.log("Sucesso V3.2. Registros consolidados: " + dadosGlobaisBase.length);
+                
+                document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
+                document.getElementById('txtModTotal').innerText = totalModelosContados;
+
+                fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))];
+                document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
+                
+                const containerFab = document.getElementById('containerFiltroFabricante');
+                containerFab.innerHTML = '';
+                fabricantesDistintos.forEach(fab => {
+                    containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
+                });
+
+                renderizarTabelaOperacional(dadosGlobaisBase);
+
+            } catch (errLoop) {
+                console.error("Falha crítica no processamento da tabela: ", errLoop);
             }
-
-            dadosGlobaisBase = Object.values(dicionarioAgrupamento);
-            console.log("Mapeamento concluído com sucesso. Grupos gerados: " + dadosGlobaisBase.length);
-            
-            document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
-            document.getElementById('txtModTotal').innerText = totalModelosContados;
-
-            fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))];
-            document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
-            
-            const containerFab = document.getElementById('containerFiltroFabricante');
-            containerFab.innerHTML = '';
-            fabricantesDistintos.forEach(fab => {
-                containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
-            });
-
-            renderizarTabelaOperacional(dadosGlobaisBase);
         }
 
         function renderizarTabelaOperacional(listaFiltro) {
