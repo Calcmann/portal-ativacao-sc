@@ -62,7 +62,6 @@
         .btn-salvar { background-color: var(--texto-principal); color: white; border: none; padding: 8px 16px; font-size: 0.85rem; font-weight: bold; border-radius: 4px; cursor: pointer; align-self: flex-end; }
         .btn-salvar:hover { background-color: #000; }
 
-        /* Novo Marcador de Versão Fixo no Canto Inferior Direito */
         .marcador-versao {
             position: fixed;
             bottom: 16px;
@@ -120,7 +119,6 @@
 
     </main>
 
-    <!-- Marcador Visual de Versão do Sistema -->
     <div class="marcador-versao">V1.1</div>
 
     <script>
@@ -129,6 +127,7 @@
         const tokenInput = document.getElementById('inputToken');
         const statusConexao = document.getElementById('statusConexao');
 
+        // AJUSTE OBRIGATÓRIO: Insira aqui os dados da sua conta do GitHub
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
@@ -149,20 +148,25 @@
             dropzone.addEventListener(eventName, (e) => { e.preventDefault(); dropzone.classList.remove('dragover'); }, false);
         });
 
+        // CORREÇÃO: Força o isolamento do primeiro arquivo vindo do arrastar
         dropzone.addEventListener('drop', (e) => {
             const dt = e.dataTransfer;
             const files = dt.files;
             if(files.length > 0) tratarSelecaoArquivo(files[0]);
         });
 
+        // CORREÇÃO: Força o isolamento do primeiro arquivo vindo do botão
         fileInput.addEventListener('change', (e) => {
             if(fileInput.files.length > 0) tratarSelecaoArquivo(fileInput.files[0]);
         });
 
-        function tratarSelecaoArquivo(arquivo) {
-            if (!arquivo || !arquivo.name) return;
+        function tratarSelecaoArquivo(arquivoUnico) {
+            if (!arquivoUnico || !arquivoUnico.name) return;
 
-            Papa.parse(arquivo, {
+            document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoUnico.name}</strong>`;
+            
+            // 1. Processamento local do PapaParse usando o arquivo tratado
+            Papa.parse(arquivoUnico, {
                 header: true,
                 skipEmptyLines: true,
                 complete: function(results) {
@@ -170,7 +174,8 @@
                 }
             });
 
-            salvarCSVNoGithub(arquivo);
+            // 2. Dispara a subida do arquivo para a API do GitHub
+            salvarCSVNoGithub(arquivoUnico);
         }
 
         async function salvarCSVNoGithub(arquivo) {
@@ -251,7 +256,11 @@
         }
 
         function gerarDashboardAuditoria(dados) {
-            const itensValidos = dados.filter(linha => linha['Modelo'] && linha['Modelo'] !== '-');
+            const itensValidos = dados.filter(linha => {
+                // Remove espaços em branco dos nomes das chaves do objeto
+                const chaves = Object.keys(linha).map(k => k.trim());
+                return linha['Modelo'] && linha['Modelo'] !== '-';
+            });
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
