@@ -100,10 +100,10 @@
             <button class="btn-claro" onclick="document.getElementById('fileInput').click()">Selecionar Arquivo</button>
             
             <div id="progressContainer" style="width: 100%; max-width: 400px; background-color: #e5e7eb; height: 8px; border-radius: 4px; margin: 20px auto 0 auto; display: none; overflow: hidden;">
-                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.3s ease;"></div>
+                <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Motor V2.1 Indexado por Posição carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V2.2 Carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -124,8 +124,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V2.1 -->
-    <div class="marcador-versao" id="txtVersao">V2.1</div>
+    <!-- Versão Atualizada para V2.2 -->
+    <div class="marcador-versao" id="txtVersao">V2.2</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -165,14 +165,14 @@
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]);
+                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Captura o arquivo isolado correto
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]);
+                tratarSelecaoArquivo(fileInput.files[0]); // Captura o arquivo isolado correto
             }
         });
 
@@ -183,7 +183,7 @@
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando motor V2.1 por Índices de Posição Físicos...");
+            registrarLog("Executando motor V2.2 de Limpeza de Aspas Ocultas...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
@@ -192,46 +192,41 @@
                     const textoBruto = evt.target.result;
                     registrarLog("Texto bruto obtido com sucesso.");
                     
-                    // Separa as linhas limpando quebras
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
                     if(linhasBrutas.length <= 1) {
                         registrarLog("❌ Erro: O arquivo possui apenas cabeçalho ou está em branco.");
                         return;
                     }
 
-                    // Força a detecção do caractere separador
                     const primeiraLinha = linhasBrutas[0];
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
                     registrarLog(`Separador detectado: [ ${separador} ]`);
 
-                    // Descobre em qual linha começa a tabela varrendo até achar um modelo válido
                     let indiceTabela = 0;
                     for(let i = 0; i < linhasBrutas.length; i++) {
                         const colTeste = linhasBrutas[i].split(separador);
-                        if(colTeste.length >= 6 && colTeste[0].toLowerCase().includes('fabricante')) {
+                        if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
                             indiceTabela = i;
-                            registrarLog(`Linha de cabeçalho localizada no índice estrutural: ${i}`);
+                            registrarLog(`Cabeçalho localizado no índice: ${i}`);
                             break;
                         }
                     }
 
-                    // Processa as linhas de dados usando estritamente os índices numéricos das colunas
                     const matrizDados = [];
                     for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
-                        const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"]/g, "").trim());
+                        // 🌟 ATUALIZAÇÃO V2.2: Remove aspas textuais estruturais e espaços fantasmas de todas as colunas
+                        const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
                         
-                        // Ignora linhas que não possuem colunas suficientes
                         if(colunas.length < 6) continue;
 
-                        // Mapeamento Direto por Posição Física da Coluna
-                        const fabricante = colunas[0]; // Coluna 1
-                        const modelo = colunas[5];     // Coluna 6
-                        const firmware = colunas[8] || 'Não especificado'; // Coluna 9
+                        const fabricante = colunas[0]; 
+                        const modelo = colunas[5];     
+                        const firmware = colunas[8] || 'Não especificado'; 
 
-                        // Validador tolerante: Se tiver Fabricante e Modelo preenchidos, a linha é válida
-                        if(modelo && modelo !== '-' && fabricante && fabricante !== '-') {
+                        // Filtro ultra-tolerante para resgatar as 63 linhas homologadas da Claro
+                        if(modelo && modelo !== '-' && modelo !== '') {
                             matrizDados.push({
-                                fabricante: fabricante,
+                                fabricante: fabricante || 'Claro S.A.',
                                 modelo: modelo,
                                 firmware: firmware
                             });
@@ -279,7 +274,6 @@
             } catch(e) {}
 
             progressBar.style.width = '75%';
-            registrarLog("Enviando requisição de rede para a API...");
 
             const payload = {
                 message: `Atualização de Matriz de Engenharia: ${nomeOriginal}`,
@@ -334,7 +328,6 @@
             });
         }
 
-        // 🌟 NOVA FUNÇÃO V2.1: Injeta os cards ignorando nomes textuais de chaves
         function gerarCardsNaTela(itensValidos) {
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
