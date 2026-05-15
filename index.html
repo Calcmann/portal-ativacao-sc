@@ -8,17 +8,18 @@
         :root {
             --claro-vermelho: #ee1d23;
             --claro-vermelho-hover: #c91419;
-            --bg-layout: #f8fafc;
+            --bg-layout: #f4f5f7;
             --bg-card: #ffffff;
-            --texto-principal: #0f172a;
-            --texto-mutado: #64748b;
-            --borda: #e2e8f0;
+            --texto-principal: #111827;
+            --texto-mutado: #6b7280;
+            --borda: #e5e7eb;
+            --verde-sucesso: #16a34a;
         }
 
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
         body { background-color: var(--bg-layout); color: var(--texto-principal); display: flex; flex-direction: column; min-height: 100vh; }
 
-        header { background-color: var(--bg-card); border-bottom: 3px solid var(--claro-vermelho); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        header { background-color: var(--bg-card); border-bottom: 4px solid var(--claro-vermelho); padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
         .logo-area h1 { font-size: 1.3rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px; }
         .logo-area h1 span { color: var(--claro-vermelho); }
         .logo-area p { font-size: 0.8rem; color: var(--texto-mutado); font-weight: 500; }
@@ -45,7 +46,7 @@
         .input-busca-desktop:focus { border-color: var(--claro-vermelho); }
         .icone-busca { position: absolute; left: 16px; top: 15px; color: var(--texto-mutado); font-size: 1.1rem; }
 
-        .tabela-container { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.02); }
+        .tabela-container { background-color: var(--bg-card); border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
         table { width: 100%; border-collapse: collapse; text-align: left; font-size: 0.9rem; }
         th { background-color: #f1f5f9; color: #475569; font-weight: 600; padding: 14px 16px; border-bottom: 1px solid var(--borda); text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px; }
         td { padding: 14px 16px; border-bottom: 1px solid var(--borda); vertical-align: middle; line-height: 1.4; }
@@ -90,7 +91,7 @@
         <section class="conteudo-principal">
             <div class="indicadores-grid">
                 <div class="card-indicador">
-                    <h4>Firmwares Homologados</h4>
+                    <h4>Firmwares Únicos</h4>
                     <p id="txtTotal">0</p>
                 </div>
                 <div class="card-indicador" style="border-left: 4px solid var(--claro-vermelho);">
@@ -113,8 +114,8 @@
                     <thead>
                         <tr>
                             <th style="width: 15%;">Fabricante</th>
-                            <th style="width: 35%;">Modelos Compatíveis na Operação</th>
-                            <th style="width: 25%;">Canais Atendidos</th>
+                            <th style="width: 40%;">Modelos Compatíveis na Operação</th>
+                            <th style="width: 20%;">Canais Atendidos</th>
                             <th style="width: 25%;">Firmware de Ativação Homologado</th>
                         </tr>
                     </thead>
@@ -128,116 +129,107 @@
         </section>
     </div>
 
-    <div class="marcador-versao" id="txtVersao">V3.2</div>
+    <div class="marcador-versao" id="txtVersao">V3.3</div>
 
     <script>
         let dadosGlobaisBase = [];
         let fabricantesDistintos = [];
 
-        // Preencha com seus dados do repositório para o relógio funcionar
         const GITHUB_USER = "seu-usuario-aqui";
         const GITHUB_REPO = "portal-ativacao-sc";
 
         async function sincronizarPortal() {
             try {
-                const urlEngenharia = 'engenharia.csv?nocache=' + new Date().getTime();
-                console.log("Buscando dados em: " + urlEngenharia);
+                // Força o desvio de cache do navegador usando timestamp em milissegundos
+                const urlEngenharia = 'engenharia.csv?t=' + new Date().getTime();
                 const resposta = await fetch(urlEngenharia);
                 const textoPlanoCSV = await resposta.text();
-                processarMatrizCSV(textoPlanoCSV);
+                processarMatrizCSVNativa(textoPlanoCSV);
             } catch (e) {
-                console.error("Erro no fetch: ", e);
-                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Conexão. Base de dados inacessível.</td></tr>`;
+                document.getElementById('corpoTabela').innerHTML = `<tr><td colspan="4" class="status-carregando" style="color:var(--claro-vermelho);">❌ Erro de Conexão. Base de dados inacessível ou vazia no repositório.</td></tr>`;
             }
         }
 
-        function processarMatrizCSV(texto) {
-            try {
-                const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                if(linhasBrutas.length <= 1) {
-                    console.warn("Arquivo sem linhas de dados.");
-                    return;
+        // 🌟 MOTOR ATUALIZADO V3.3: Baseado estritamente na mecânica de posição e forward fill do painel gerencial
+        function processarMatrizCSVNativa(texto) {
+            const linhasBrutas = texto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
+            if(linhasBrutas.length <= 1) return;
+
+            const primeiraLinha = linhasBrutas[0];
+            const separador = primeiraLinha.includes(';') ? ';' : ',';
+
+            let indiceTabela = 0;
+            for(let i = 0; i < linhasBrutas.length; i++) {
+                const colTeste = linhasBrutas[i].split(separador);
+                if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
+                    indiceTabela = i;
+                    break;
                 }
-
-                // Corrige detecção limpa do separador na primeira linha de texto bruto
-                const primeiraLinhaCompleta = texto.split(/\r\n|\r|\n/)[0] || '';
-                const separador = primeiraLinhaCompleta.includes(';') ? ';' : ',';
-                console.log("Separador V3.2: " + separador);
-
-                let indiceCabecalho = 0;
-                for(let i = 0; i < linhasBrutas.length; i++) {
-                    const colTeste = linhasBrutas[i].split(separador);
-                    if(colTeste.length >= 2 && colTeste[0].toLowerCase().includes('fabricante')) {
-                        indiceCabecalho = i;
-                        break;
-                    }
-                }
-
-                const dicionarioAgrupamento = {};
-                let memoriaFabricante = "Claro S.A.";
-                let totalModelosContados = 0;
-
-                for(let i = indiceCabecalho + 1; i < linhasBrutas.length; i++) {
-                    const colunas = linhasBrutas[i].split(separador).map(c => c.replace(/[\"']/g, "").trim());
-                    if(colunas.length < 6) continue;
-
-                    let fabricanteCelular = colunas[0];
-                    const vipline = colunas[1];
-                    const vipsip = colunas[2];
-                    const pabx = colunas[3];
-                    const dados = colunas[4];
-                    const modelo = colunas[5];
-                    const firmware = colunas[8] ? colunas[8].trim() : '';
-
-                    if(fabricanteCelular && fabricanteCelular !== '-' && fabricanteCelular !== '') {
-                        memoriaFabricante = fabricanteCelular;
-                    }
-
-                    if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
-                        totalModelosContados++;
-                        const chaveUnicaFirmware = `${memoriaFabricante.toUpperCase()}_${firmware.toLowerCase()}`;
-
-                        if(!dicionarioAgrupamento[chaveUnicaFirmware]) {
-                            dicionarioAgrupamento[chaveUnicaFirmware] = {
-                                fabricante: memoriaFabricante,
-                                firmware: firmware,
-                                modelos: [],
-                                vipline: false, vipsip: false, pabx: false, dados: false
-                            };
-                        }
-
-                        if(!dicionarioAgrupamento[chaveUnicaFirmware].modelos.includes(modelo)) {
-                            dicionarioAgrupamento[chaveUnicaFirmware].modelos.push(modelo);
-                        }
-
-                        // 🌟 CORREÇÃO V3.2: Atribuição direta limpa eliminando a variável oculta não declarada
-                        if(vipline === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipline = true;
-                        if(vipsip === 'X') dicionarioAgrupamento[chaveUnicaFirmware].vipsip = true;
-                        if(pabx === 'X') dicionarioAgrupamento[chaveUnicaFirmware].pabx = true;
-                        if(dados === 'X') dicionarioAgrupamento[chaveUnicaFirmware].dados = true;
-                    }
-                }
-
-                dadosGlobaisBase = Object.values(dicionarioAgrupamento);
-                console.log("Sucesso V3.2. Registros consolidados: " + dadosGlobaisBase.length);
-                
-                document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
-                document.getElementById('txtModTotal').innerText = totalModelosContados;
-
-                fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))];
-                document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
-                
-                const containerFab = document.getElementById('containerFiltroFabricante');
-                containerFab.innerHTML = '';
-                fabricantesDistintos.forEach(fab => {
-                    containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
-                });
-
-                renderizarTabelaOperacional(dadosGlobaisBase);
-
-            } catch (errLoop) {
-                console.error("Falha crítica no processamento da tabela: ", errLoop);
             }
+
+            const dicionarioAgrupamento = {};
+            let ultimoFabricanteValido = "Claro S.A.";
+            let totalModelosContados = 0;
+
+            for(let i = indiceTabela + 1; i < linhasBrutas.length; i++) {
+                const colunas = linhasBrutas[i].split(separador).map(col => col.replace(/[\"']/g, "").trim());
+                
+                if(colunas.length < 6) continue;
+
+                let fabricanteBruto = colunas[0];
+                const vipline = colunas[1];
+                const vipsip = colunas[2];
+                const pabx = colunas[3];
+                const dados = colunas[4];
+                const modelo = colunas[5];
+                const firmware = colunas[8] ? colunas[8].trim() : '';
+
+                if (fabricanteBruto && fabricanteBruto !== '-' && fabricanteBruto !== '') {
+                    ultimoFabricanteValido = fabricanteBruto;
+                }
+
+                if(modelo && modelo !== '-' && modelo !== '' && firmware && firmware !== '-' && firmware !== '') {
+                    totalModelosContados++;
+                    const chaveGrupo = `${ultimoFabricanteValido.toUpperCase()}_${firmware.toLowerCase()}`;
+
+                    if(!dicionarioAgrupamento[chaveGrupo]) {
+                        dicionarioAgrupamento[chaveGrupo] = {
+                            fabricante: ultimoFabricanteValido,
+                            firmware: firmware,
+                            modelos: [],
+                            vipline: false, vipsip: false, pabx: false, dados: false
+                        };
+                    }
+                    
+                    if(!dicionarioAgrupamento[chaveGrupo].modelos.includes(modelo)){
+                        dicionarioAgrupamento[chaveGrupo].modelos.push(modelo);
+                    }
+
+                    if(vipline === 'X') dicionarioAgrupamento[chaveGrupo].vipline = true;
+                    if(vipsip === 'X') dicionarioAgrupamento[chaveGrupo].vipsip = true;
+                    if(pabx === 'X') dicionarioAgrupamento[chaveGrupo].pabx = true;
+                    if(dados === 'X') dicionarioAgrupamento[chaveGrupo].dados = true;
+                }
+            }
+
+            // Converte para array e aplica a ordenação alfabética por FABRICANTE solicitada
+            dadosGlobaisBase = Object.values(dicionarioAgrupamento).sort((a, b) => {
+                return a.fabricante.localeCompare(b.fabricante, 'pt', { sensitivity: 'base' });
+            });
+            
+            document.getElementById('txtTotal').innerText = dadosGlobaisBase.length;
+            document.getElementById('txtModTotal').innerText = totalModelosContados;
+
+            fabricantesDistintos = [...new Set(dadosGlobaisBase.map(item => item.fabricante))].sort();
+            document.getElementById('txtFabTotal').innerText = fabricantesDistintos.length;
+            
+            const containerFab = document.getElementById('containerFiltroFabricante');
+            containerFab.innerHTML = '';
+            fabricantesDistintos.forEach(fab => {
+                containerFab.innerHTML += `<label class="filtro-check"><input type="checkbox" class="chk-fab" value="${fab}" onchange="filtrarDados()"> ${fab}</label>`;
+            });
+
+            renderizarTabelaOperacional(dadosGlobaisBase);
         }
 
         function renderizarTabelaOperacional(listaFiltro) {
