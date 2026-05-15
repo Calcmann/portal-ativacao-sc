@@ -25,9 +25,10 @@
         header h1 span { color: var(--claro-vermelho); }
 
         .auth-box { display: flex; align-items: center; gap: 8px; }
-        .token-input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.85rem; outline: none; }
+        .token-input { padding: 8px 12px; border-radius: 6px; border: 1px solid var(--borda); font-size: 0.85rem; outline: none; width: 280px; }
         .status-dot { width: 10px; height: 10px; background-color: #9ca3af; border-radius: 50%; }
         .status-dot.active { background-color: var(--verde-sucesso); }
+        .status-dot.invalid { background-color: var(--claro-vermelho); }
 
         .container { max-width: 1000px; margin: 0 auto; padding-bottom: 60px; }
 
@@ -76,7 +77,7 @@
     <header>
         <h1>Ativação - <span>SC</span></h1>
         <div class="auth-box">
-            <input type="password" id="inputToken" class="token-input" placeholder="Chave de Acesso GitHub (Token)">
+            <input type="password" id="inputToken" class="token-input" placeholder="Cole o Token ghp_ ou github_pat_">
             <div id="statusConexao" class="status-dot" title="Chave não informada"></div>
         </div>
     </header>
@@ -111,8 +112,8 @@
 
     </main>
 
-    <!-- Versão do Painel Corrigida para V3.2 -->
-    <div class="marcador-versao" id="txtVersao">V3.2</div>
+    <!-- Versão do Painel Atualizada para V3.4 -->
+    <div class="marcador-versao" id="txtVersao">V3.4</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -123,13 +124,27 @@
         const GITHUB_USER = "calcmann";
         const GITHUB_REPO = "portal-ativacao-sc";
 
+        // 🌟 ATUALIZAÇÃO RÍGIDA V3.4: Validação por assinatura estrutural do GitHub
         tokenInput.addEventListener('input', () => {
-            if(tokenInput.value.trim().length > 10) {
-                statusConexao.className = 'status-dot active';
-                statusConexao.title = "Chave Admin Pronta";
-            } else {
+            const token = tokenInput.value.trim();
+
+            if (token === "") {
                 statusConexao.className = 'status-dot';
                 statusConexao.title = "Chave não informada";
+                return;
+            }
+
+            // Regex 1: Valida ghp_ seguido de exatamente 36 caracteres alfanuméricos (Total 40)
+            const regexClassic = /^ghp_[a-zA-Z0-9]{36}$/;
+            // Regex 2: Valida github_pat_ seguido de exatamente 82 caracteres alfanuméricos (Total 93)
+            const regexFineGrained = /^github_pat_[a-zA-Z0-9_]{82}$/;
+
+            if (regexClassic.test(token) || regexFineGrained.test(token)) {
+                statusConexao.className = 'status-dot active';
+                statusConexao.title = "Assinatura de Token Válida";
+            } else {
+                statusConexao.className = 'status-dot invalid';
+                statusConexao.title = "Formato Inválido! Certifique-se de colar a string ghp_ ou github_pat_ completa.";
             }
         });
 
@@ -239,7 +254,9 @@
             const progressBar = document.getElementById('progressBar');
             const uploadStatus = document.getElementById('uploadStatus');
 
-            if(!token) {
+            // Caso a bolinha esteja vermelha ou cinza, barra a transmissão automática e força a contingência manual
+            const statusDotClass = statusConexao.className;
+            if(!token || statusDotClass.includes('invalid')) {
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
@@ -314,7 +331,7 @@
                 const card = document.createElement('div');
                 card.className = 'card-pendencia';
                 card.id = `card-${index}`;
-                const modelosTexto = groupModels = grupo.modelos.join(" / ");
+                const modelosTexto = grupo.modelos.join(" / ");
                 const pastaFab = grupo.fabricante.toLowerCase().replace(/ /g, '_');
 
                 card.innerHTML = `
@@ -340,10 +357,6 @@
             });
         }
 
-        function toggleInput(id, type) {
-            alternarInput(id, type);
-        }
-
         function alternarInput(id, tipo) {
             const container = document.getElementById(`container-input-${id}`);
             if (tipo === 'local') {
@@ -357,6 +370,7 @@
             const token = tokenInput.value.trim();
             const statusLabel = document.getElementById(`status-card-${id}`);
             const seletorTipo = document.querySelector(`input[name="tipo-${id}"]:checked`).value;
+            const statusDotClass = statusConexao.className;
 
             if (seletorTipo === 'local') {
                 const inputArquivo = document.getElementById(`file-upload-${id}`);
@@ -374,7 +388,7 @@
                 reader.onloadend = function() {
                     if (reader.readyState !== FileReader.DONE) return;
                     const base64Puro = reader.result.substring(reader.result.indexOf(',') + 1);
-                    dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, base64Puro, token, statusLabel);
+                    dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, base64Puro, token, statusLabel, statusDotClass);
                 };
             } else {
                 const inputUrl = document.getElementById(`url-link-${id}`);
@@ -384,15 +398,15 @@
                     return;
                 }
                 const urlBase64 = btoa(unescape(encodeURIComponent(inputUrl.value.trim())));
-                dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, urlBase64, token, statusLabel);
+                dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, urlBase64, token, statusLabel, statusDotClass);
             }
         }
 
-        // 🌟 CORREÇÃO CRÍTICA V3.2: Alinhamento de cabeçalho "token ${token}" para evitar falsos erros de firewall
-        async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel) {
-            if (!token) {
+        async function dispararUploadGitHubAPI(id, pastaFab, nomeFirmware, conteudoUpload, token, statusLabel, statusDotClass) {
+            // Se a bolinha estiver vermelha ou cinza, bloqueia o envio via API para poupar processamento
+            if (!token || statusDotClass.includes('invalid')) {
                 statusLabel.className = "status-upload-card erro";
-                statusLabel.innerText = "🔒 Chave vazia! Use a interface manual do GitHub.";
+                statusLabel.innerText = "🔒 Chave inválida! Use a interface manual do GitHub.";
                 
                 const containerInput = document.getElementById(`container-input-${id}`);
                 containerInput.innerHTML = `
@@ -418,7 +432,7 @@
                 const respostaAPI = await fetch(urlDestinoAPI, {
                     method: "PUT",
                     headers: {
-                        "Authorization": `token ${token}`, // Mudado de Bearer de volta para token para casar com a API
+                        "Authorization": `token ${token}`,
                         "Content-Type": "application/json"
                     },
                     body: JSON.stringify(pacotePayload)
@@ -438,7 +452,6 @@
                         }, 300);
                     }, 1500);
                 } else {
-                    const respostaErroTxt = await respostaAPI.text();
                     statusLabel.className = "status-upload-card erro";
                     statusLabel.innerText = `❌ API recusou o arquivo (Status ${respostaAPI.status})`;
                 }
