@@ -103,7 +103,7 @@
                 <div id="progressBar" style="width: 0%; height: 100%; background-color: #ee1d23; transition: width 0.2s ease;"></div>
             </div>
 
-            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V1.9 carregado.</div>
+            <div class="terminal-log" id="caixaLog">> Sistema pronto. Analisador V2.0 carregado.</div>
         </div>
 
         <div class="dashboard-resumo" id="dashboard">
@@ -124,8 +124,8 @@
 
     </main>
 
-    <!-- Versão Atualizada para V1.9 -->
-    <div class="marcador-versao" id="txtVersao">V1.9</div>
+    <!-- Versão Atualizada para V2.0 -->
+    <div class="marcador-versao" id="txtVersao">V2.0</div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
@@ -165,14 +165,14 @@
             e.preventDefault();
             registrarLog("Arquivo recebido via Drag & Drop.");
             if(e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Correção de escopo direto no índice 0
+                tratarSelecaoArquivo(e.dataTransfer.files[0]); // Captura o arquivo isolado correto
             }
         });
 
         fileInput.addEventListener('change', (e) => {
             registrarLog("Arquivo recebido via clique.");
             if(fileInput.files && fileInput.files.length > 0) {
-                tratarSelecaoArquivo(fileInput.files[0]); // Correção de escopo direto no índice 0
+                tratarSelecaoArquivo(fileInput.files[0]); // Captura o arquivo isolado correto
             }
         });
 
@@ -183,7 +183,7 @@
             }
 
             document.getElementById('uploadStatus').innerHTML = `Processando: <strong>${arquivoObjeto.name}</strong>`;
-            registrarLog("Executando leitor nativo de strings V1.9...");
+            registrarLog("Executando leitor nativo V2.0...");
             
             const leitorTexto = new FileReader();
             leitorTexto.readAsText(arquivoObjeto, "UTF-8");
@@ -192,12 +192,20 @@
                     const textoBruto = evt.target.result;
                     registrarLog("Texto bruto obtido com sucesso.");
                     
+                    // 🌟 REESTRUTURAÇÃO V2.0: Mapeamento de quebra robusto e tolerante a falhas do Excel
                     const linhasBrutas = textoBruto.split(/\r\n|\r|\n/).map(l => l.trim()).filter(l => l.length > 0);
-                    const primeiraLinha = linhasBrutas[0] || '';
+                    
+                    if(linhasBrutas.length === 0) {
+                        registrarLog("❌ Erro: Planilha vazia ou ilegível.");
+                        return;
+                    }
+
+                    const primeiraLinha = linhasBrutas[0];
                     const separador = primeiraLinha.includes(';') ? ';' : ',';
-                    registrarLog(`Separador ativo mapeado: [ ${separador} ]`);
+                    registrarLog(`Separador de tabela mapeado: [ ${separador} ]`);
 
                     const cabecalhos = primeiraLinha.split(separador).map(c => c.replace(/[\r\n\t\"]+/g, " ").trim());
+                    registrarLog(`Cabeçalhos lidos: ${cabecalhos.join(' | ')}`);
                     
                     const matrizDados = [];
                     for(let i = 1; i < linhasBrutas.length; i++) {
@@ -209,12 +217,12 @@
                         matrizDados.push(objLinha);
                     }
 
-                    registrarLog(`Estrutura mapeada. Processando ${matrizDados.length} objetos criados.`);
+                    registrarLog(`Estrutura concluída. Enviando ${matrizDados.length} objetos para o filtro...`);
                     gerarDashboardAuditoria(matrizDados);
                     salvarCSVNoGithub(arquivoObjeto.name, textoBruto);
 
                 } catch(errorInterno) {
-                    registrarLog(`❌ Erro de processamento: ${errorInterno.message}`);
+                    registrarLog(`❌ Erro de processamento interno: ${errorInterno.message}`);
                 }
             };
         }
@@ -226,7 +234,7 @@
             const uploadStatus = document.getElementById('uploadStatus');
 
             if(!token) {
-                registrarLog("⚠️ Modo offline ativado. Chave de acesso vazia.");
+                registrarLog("⚠️ Modo offline ativo (Chave de acesso vazia).");
                 ativarInterfaceContingencia(textoPlain);
                 return;
             }
@@ -277,11 +285,11 @@
                     registrarLog("✅ Sincronização concluída via API!");
                     setTimeout(() => { progressContainer.style.display = 'none'; buscarUltimaAtualizacao(); }, 4000);
                 } else {
-                    registrarLog(`⚠️ Rota bloqueada por segurança. Executando plano alternativo.`);
+                    registrarLog(`⚠️ Rota bloqueada por segurança. Ativando Contingência...`);
                     ativarInterfaceContingencia(textoPlain);
                 }
             } catch(errFetch) {
-                registrarLog(`⚠️ Rota bloqueada por proxy. Executando plano alternativo.`);
+                registrarLog(`⚠️ Rota bloqueada por proxy. Ativando Contingência...`);
                 ativarInterfaceContingencia(textoPlain);
             }
         }
@@ -292,8 +300,8 @@
             progressContainer.style.display = 'none';
             
             uploadStatus.innerHTML = `
-                <span style="color:var(--laranja-alerta);">🔒 <strong>Bloqueio de Firewall Detectado!</strong></span><br>
-                A planilha foi tratada localmente. Use o atalho manual para sincronizar:<br><br>
+                <span style="color:var(--laranja-alerta);">🔒 <strong>Painel Pronto! Sincronização requerida:</strong></span><br>
+                A planilha foi tratada localmente. Use o atalho manual para salvar no repositório:<br><br>
                 <button class="btn-contingencia" id="btnCopiarTexto">📋 Copiar Dados da Planilha</button>
                 <a href="https://github.com{GITHUB_USER}/${GITHUB_REPO}/edit/main/engenharia.csv" target="_blank" class="btn-contingencia" style="background-color:#24292e;">➔ Abrir Página do GitHub</a>
             `;
@@ -308,14 +316,14 @@
         function gerarDashboardAuditoria(dados) {
             registrarLog("Filtrando e higienizando os modelos válidos...");
             
-            // 🌟 ATUALIZAÇÃO V1.9: Filtro tolerante a células vazias ou nulas do Excel BR
+            // 🌟 ATUALIZAÇÃO V2.0: Tratamento robusto por aproximação lógica tolerante a quebras
             const itensValidos = dados.filter(linha => {
                 const chaves = Object.keys(linha);
                 const chaveModelo = chaves.find(k => k.toLowerCase().includes('modelo'));
-                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].trim() !== '' && linha[chaveModelo].trim() !== '-';
+                return chaveModelo && linha[chaveModelo] && linha[chaveModelo].toString().trim() !== '' && linha[chaveModelo].toString().trim() !== '-';
             });
             
-            registrarLog(`Mapeados: ${itensValidos.length} equipamentos válidos.`);
+            registrarLog(`Mapeamento final concluído: ${itensValidos.length} equipamentos válidos.`);
             
             document.getElementById('dashboard').style.display = 'grid';
             document.getElementById('tituloLista').style.display = 'block';
